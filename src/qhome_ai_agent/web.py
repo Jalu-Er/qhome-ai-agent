@@ -61,15 +61,17 @@ class WebApp:
                 mode = payload.get("mode", "mock")
                 message = str(payload.get("message", "")).strip()
                 customer_name = str(payload.get("customer_name", "Pelanggan")).strip() or "Pelanggan"
+                history = payload.get("history", [])
                 if not message:
                     raise ValueError("Message is required.")
 
+                transcript = self._build_transcript(history, message)
                 ticket = {
                     "id": "web-chat",
                     "customer_name": customer_name,
                     "channel": "Web Chat",
                     "subject": "Customer web chat",
-                    "message": message,
+                    "message": transcript,
                 }
                 knowledge_base = read_json(app.root / "data/knowledge_base.json")
                 if mode == "live":
@@ -83,6 +85,20 @@ class WebApp:
                     knowledge_base=knowledge_base,
                     output_dir=app.root / "runs",
                 )
+
+            def _build_transcript(self, history: object, message: str) -> str:
+                lines = []
+                if isinstance(history, list):
+                    for item in history[-10:]:
+                        if not isinstance(item, dict):
+                            continue
+                        role = str(item.get("role", "")).strip().lower()
+                        content = str(item.get("content", "")).strip()
+                        if role in {"customer", "assistant"} and content:
+                            label = "Customer" if role == "customer" else "Assistant"
+                            lines.append(f"{label}: {content}")
+                lines.append(f"Customer: {message}")
+                return "\n".join(lines)
 
             def _send_json(self, data: object, status: HTTPStatus = HTTPStatus.OK) -> None:
                 encoded = json.dumps(data, ensure_ascii=False).encode("utf-8")

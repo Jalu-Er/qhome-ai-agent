@@ -16,13 +16,13 @@ class MockChatModel:
     ) -> dict[str, Any]:
         state = payload.get("state", {})
         ticket = state.get("ticket", payload.get("ticket", {}))
-        text = f"{ticket.get('subject', '')} {ticket.get('message', '')}".lower()
+        text = self._customer_text(f"{ticket.get('subject', '')} {ticket.get('message', '')}")
         outputs = state.get("agent_outputs", {})
 
         if agent_name == "intent_classifier":
             return self._intent(text)
         if agent_name == "knowledge_retrieval":
-            return self._knowledge(payload.get("knowledge_base", {}), text)
+            return self._knowledge(payload.get("knowledge_base", {}), text, outputs)
         if agent_name == "solution_planner":
             return self._solution(outputs)
         if agent_name == "priority_escalation":
@@ -57,7 +57,8 @@ class MockChatModel:
             "reasoning": "Kata kunci pada pesan pelanggan dipetakan ke kategori layanan atau konsultasi produk yang paling relevan.",
         }
 
-    def _knowledge(self, knowledge_base: dict[str, Any], text: str) -> dict[str, Any]:
+    def _knowledge(self, knowledge_base: dict[str, Any], text: str, outputs: dict[str, Any]) -> dict[str, Any]:
+        intent = outputs.get("intent_classifier", {}).get("intent", "")
         scored = []
         entries = knowledge_base.get("policies", []) + knowledge_base.get("product_guides", [])
         for policy in entries:
@@ -75,6 +76,14 @@ class MockChatModel:
             score = len(tokens.intersection(keywords))
             if policy.get("id", "").startswith("GUIDE") and any(word in text for word in ["rekomendasi", "pakai apa", "butuh"]):
                 score += 1
+            if intent == "product_advice" and policy.get("id", "").startswith("GUIDE"):
+                score += 3
+            if intent == "damaged_item" and policy.get("id") == "POL-DELIVERY-DAMAGE":
+                score += 4
+            if intent == "delivery_tracking" and policy.get("id") == "POL-DELIVERY-TRACKING":
+                score += 4
+            if intent == "return_or_refund" and policy.get("id") == "POL-RETURN-7D":
+                score += 4
             if any(token in haystack for token in tokens.intersection(keywords)):
                 score += 1
             if score:
@@ -105,11 +114,19 @@ class MockChatModel:
                 "Pilih cat anti jamur sesuai area indoor atau outdoor setelah permukaan siap.",
             ]
         elif intent == "damaged_item":
-            actions = [
-                "Minta nomor pesanan, foto produk rusak, foto kemasan, dan video unboxing jika ada.",
-                "Validasi apakah laporan masih dalam batas waktu klaim kerusakan.",
-                "Tawarkan penggantian barang atau proses klaim sesuai kebijakan.",
-            ]
+            missing = outputs.get("intent_classifier", {}).get("missing_information", [])
+            if missing:
+                actions = [
+                    "Minta nomor pesanan, foto produk rusak, foto kemasan, dan video unboxing jika ada.",
+                    "Validasi apakah laporan masih dalam batas waktu klaim kerusakan.",
+                    "Tawarkan penggantian barang atau proses klaim sesuai kebijakan.",
+                ]
+            else:
+                actions = [
+                    "Validasi bukti kerusakan dan nomor pesanan.",
+                    "Eskalasi ke tim after sales untuk klaim penggantian.",
+                    "Koordinasikan jadwal instalasi setelah klaim disetujui.",
+                ]
         elif intent == "delivery_tracking":
             actions = [
                 "Minta nomor pesanan atau resi.",
@@ -160,6 +177,7 @@ class MockChatModel:
         solution = outputs.get("solution_planner", {})
         priority = outputs.get("priority_escalation", {})
         actions = solution.get("recommended_actions", [])
+        missing = intent.get("missing_information", [])
         if intent.get("intent") == "product_advice":
             response = (
                 f"Halo {ticket.get('customer_name', 'Kak')}, untuk dinding lembab sebaiknya jangan langsung ditutup cat akhir. "
@@ -167,6 +185,12 @@ class MockChatModel:
                 "Setelah permukaan bersih dan kering, gunakan alkali resisting primer atau wall sealer anti lembab, "
                 "lalu pilih cat anti jamur yang sesuai area indoor/outdoor. "
                 "Boleh info dindingnya di dalam/luar rumah dan lembabnya berupa jamur, noda, atau rembes?"
+            )
+        elif intent.get("intent") == "damaged_item" and not missing:
+            response = (
+                f"Terima kasih {ticket.get('customer_name', 'Kak')}, informasi dan bukti yang dibutuhkan sudah kami terima. "
+                "Kami akan teruskan ke tim after sales untuk validasi klaim kerusakan dan koordinasi jadwal instalasi. "
+                "Tim kami akan memprioritaskan kasus ini karena terkait barang rusak dan kebutuhan pemasangan."
             )
         else:
             response = (
@@ -199,4 +223,27 @@ class MockChatModel:
             if "rembes" not in text:
                 missing.append("apakah ada rembes aktif")
             return missing
+        if intent == "damaged_item":
+            missing = []
+            if "qh-" not in text:
+                missing.append("nomor pesanan")
+            if "foto" not in text and "gambar" not in text:
+                missing.append("foto produk rusak dan kemasan")
+            if any(word in text for word in ["pasang", "instalasi", "dipasang"]) and "alamat" not in text:
+                missing.append("alamat instalasi")
+            if any(word in text for word in ["pasang", "instalasi", "dipasang"]) and not any(word in text for word in ["senin", "selasa", "rabu", "kamis", "jumat", "sabtu", "minggu", "jadwal"]):
+                missing.append("jadwal instalasi")
+            return missing
         return ["nomor pesanan"] if "qh-" not in text else []
+
+    def _customer_text(self, text: str) -> str:
+        lines = []
+        for line in text.splitlines():
+            lowered = line.lower().strip()
+            if lowered.startswith("assistant:"):
+                continue
+            if lowered.startswith("customer:"):
+                lines.append(lowered.removeprefix("customer:").strip())
+            else:
+                lines.append(lowered)
+        return " ".join(lines)

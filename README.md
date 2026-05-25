@@ -63,7 +63,12 @@ Buka:
 http://127.0.0.1:8000
 ```
 
-Web demo menampilkan input chat pelanggan, pilihan mode mock/live, jawaban final, intent, priority, escalation, dan trace 5 agent.
+Web demo memisahkan dua sisi:
+
+- Customer Chat: percakapan natural antara pelanggan dan QHome AI.
+- Staff Triage Panel: intent, priority, escalation, status ticket, missing information, next steps, dan trace 5 agent.
+
+Jika pelanggan membalas lagi, pesan baru dianalisis bersama history chat sehingga status internal bisa berubah dari `waiting_customer_info` menjadi `ready_for_staff_review`.
 
 ## Data Source
 

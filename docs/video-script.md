@@ -33,11 +33,30 @@ Tampilkan web chatbox:
 python3 run.py web
 ```
 
+Tunjukkan dua panel:
+
+- Customer Chat untuk pelanggan.
+- Staff Triage Panel untuk intent, priority, escalation, missing information, next steps, dan trace agent.
+
 Demo pertanyaan produk:
 
 ```text
 Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?
 ```
+
+Demo follow-up komplain:
+
+```text
+Pesanan QH-10482 baru sampai pagi ini, tapi 6 dus keramik pecah.
+```
+
+Lalu balas sebagai pelanggan:
+
+```text
+Ini foto keramik rusak sudah saya kirim, alamat saya di Sleman dan bisa dipasang Jumat pagi.
+```
+
+Jelaskan bahwa sistem menganalisis history chat, bukan hanya satu pesan.
 
 Tampilkan file hasil:
 

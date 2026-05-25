@@ -28,6 +28,7 @@ class MockWorkflowTest(unittest.TestCase):
         self.assertEqual(output["final"]["intent"], "damaged_item")
         self.assertTrue(output["final"]["escalate"])
         self.assertEqual(len(output["trace"]), 5)
+        self.assertIn("POL-DELIVERY-DAMAGE", output["agent_outputs"]["knowledge_retrieval"]["matched_policy_ids"])
         self.assertTrue((ROOT / "runs-test/test-run/final_output.json").exists())
         self.assertTrue((ROOT / "runs-test/test-run/interactions.jsonl").exists())
 

@@ -20,6 +20,15 @@ flowchart TD
     F --> I
 ```
 
+## Web Demo UX
+
+Web demo memakai dua panel:
+
+- Customer Chat: UI seperti chat CS biasa. Pelanggan dapat mengirim pesan lanjutan.
+- Staff Triage Panel: panel internal untuk melihat priority, escalation, missing information, internal next steps, dan agent trace.
+
+Pemisahan ini penting karena customer hanya membutuhkan jawaban natural, sedangkan staff/juri membutuhkan bukti reasoning dan keputusan operasional.
+
 ## Shared State
 
 Setiap agent menerima state berisi ticket awal dan output agent sebelumnya. Agent berikutnya tidak bekerja dari nol, tetapi memakai hasil analisis sebelumnya sebagai konteks.

@@ -63,7 +63,7 @@ h1 {
 }
 
 h2 {
-  margin: 22px 0 10px;
+  margin: 0;
   font-size: 15px;
 }
 
@@ -75,8 +75,8 @@ h2 {
 }
 
 .mode select,
-.field input,
-.field textarea {
+.composer input,
+.composer textarea {
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
@@ -90,13 +90,13 @@ h2 {
 
 .chat-layout {
   display: grid;
-  grid-template-columns: minmax(320px, 420px) 1fr;
+  grid-template-columns: minmax(360px, 480px) 1fr;
   gap: 18px;
   align-items: start;
 }
 
 .chat-panel,
-.result-panel {
+.staff-panel {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -108,13 +108,28 @@ h2 {
   gap: 14px;
 }
 
+.chat-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.chat-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
 .sample-row {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
-.sample-row button {
+.sample-row button,
+.ghost {
   border: 1px solid #bcd1f5;
   border-radius: 999px;
   background: var(--surface-2);
@@ -123,24 +138,78 @@ h2 {
   cursor: pointer;
 }
 
-.field {
-  display: grid;
-  gap: 7px;
+.ghost {
+  border-radius: 8px;
+}
+
+.chat-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 360px;
+  max-height: 520px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcff;
+  padding: 14px;
+}
+
+.chat-empty {
+  margin: auto;
   color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
+  text-align: center;
+  font-size: 14px;
 }
 
-.field input {
-  height: 42px;
-  padding: 0 12px;
+.bubble {
+  max-width: 88%;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
 }
 
-.field textarea {
-  min-height: 190px;
-  resize: vertical;
-  padding: 12px;
+.bubble.customer {
+  align-self: flex-end;
+  background: #eaf2ff;
+  border-color: #bfcef5;
+}
+
+.bubble.assistant {
+  align-self: flex-start;
+}
+
+.bubble span {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+
+.bubble p {
+  margin: 0;
   line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: 150px 1fr 88px;
+  gap: 10px;
+}
+
+.composer input,
+.composer textarea {
+  padding: 10px 12px;
+}
+
+.composer textarea {
+  min-height: 44px;
+  max-height: 130px;
+  resize: vertical;
+  line-height: 1.35;
 }
 
 .primary {
@@ -156,6 +225,11 @@ h2 {
 .primary:disabled {
   opacity: 0.6;
   cursor: wait;
+}
+
+.staff-panel {
+  display: grid;
+  gap: 14px;
 }
 
 .status {
@@ -188,39 +262,58 @@ h2 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
-  margin-top: 14px;
 }
 
-.summary-grid div {
+.summary-grid div,
+.decision-list div {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 12px;
 }
 
-.summary-grid span {
+.summary-grid span,
+.decision-list span {
   display: block;
   color: var(--muted);
   font-size: 12px;
   margin-bottom: 6px;
 }
 
-.summary-grid strong {
+.summary-grid strong,
+.decision-list strong {
   display: block;
   font-size: 15px;
   overflow-wrap: anywhere;
 }
 
-.reply {
-  min-height: 110px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 14px;
-  line-height: 1.6;
-  white-space: pre-wrap;
+.decision-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
 
-.reply.empty {
-  color: var(--muted);
+.pill-list,
+.step-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.pill-list li,
+.step-list li {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: #fff;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.step-list {
+  display: grid;
 }
 
 .trace {
@@ -246,7 +339,7 @@ h2 {
   line-height: 1.5;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 960px) {
   .app {
     padding: 16px;
   }
@@ -260,7 +353,9 @@ h2 {
     grid-template-columns: 1fr;
   }
 
-  .summary-grid {
+  .summary-grid,
+  .decision-list,
+  .composer {
     grid-template-columns: 1fr;
   }
 }

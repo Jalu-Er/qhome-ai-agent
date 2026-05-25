@@ -25,27 +25,31 @@
 
         <section class="chat-layout">
           <div class="chat-panel">
-            <div class="sample-row">
-              <button data-sample="Pesanan QH-10482 baru sampai pagi ini, tapi 6 dus keramik ada yang pecah dan retak. Saya butuh dipasang minggu ini, mohon dibantu cepat.">Barang rusak</button>
-              <button data-sample="Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?">Cat dinding lembab</button>
-              <button data-sample="Nomor pesanan QH-11820 seharusnya sampai kemarin, tapi sampai sekarang belum ada kabar. Bisa tolong cek posisi pengirimannya?">Delivery terlambat</button>
+            <div class="chat-header">
+              <div>
+                <h2>Customer Chat</h2>
+                <p>Balasan customer berikutnya akan dianalisis ulang bersama history chat.</p>
+              </div>
+              <button id="resetButton" class="ghost">Reset</button>
             </div>
 
-            <label class="field">
-              <span>Nama pelanggan</span>
-              <input id="customerName" value="Raka" />
-            </label>
+            <div class="sample-row" aria-label="Sample messages">
+              <button data-sample="Pesanan QH-10482 baru sampai pagi ini, tapi 6 dus keramik ada yang pecah dan retak. Saya butuh dipasang minggu ini, mohon dibantu cepat.">Barang rusak</button>
+              <button data-sample="Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?">Cat dinding lembab</button>
+              <button data-sample="Ini foto keramik rusak sudah saya kirim, alamat saya di Sleman dan bisa dipasang hari Jumat pagi.">Info lanjutan</button>
+            </div>
 
-            <label class="field grow">
-              <span>Pesan pelanggan</span>
-              <textarea id="message">Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?</textarea>
-            </label>
+            <div id="chatThread" class="chat-thread"></div>
 
-            <button id="runButton" class="primary">Jalankan 5 Agent</button>
+            <div class="composer">
+              <input id="customerName" value="Raka" aria-label="Nama pelanggan" />
+              <textarea id="message" aria-label="Pesan pelanggan" placeholder="Tulis pesan customer...">Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?</textarea>
+              <button id="runButton" class="primary">Kirim</button>
+            </div>
           </div>
 
-          <aside class="result-panel">
-            <div id="status" class="status idle">Siap menjalankan workflow multi-agent.</div>
+          <aside class="staff-panel">
+            <div id="status" class="status idle">Staff triage panel siap.</div>
             <div class="summary-grid">
               <div>
                 <span>Intent</span>
@@ -61,8 +65,18 @@
               </div>
             </div>
 
-            <h2>Jawaban Final</h2>
-            <div id="reply" class="reply empty">Belum ada hasil.</div>
+            <h2>Staff Decision</h2>
+            <div class="decision-list">
+              <div><span>Status</span><strong id="ticketStatus">-</strong></div>
+              <div><span>Team</span><strong id="team">-</strong></div>
+              <div><span>Run ID</span><strong id="runId">-</strong></div>
+            </div>
+
+            <h2>Missing Info</h2>
+            <ul id="missingInfo" class="pill-list"></ul>
+
+            <h2>Internal Next Steps</h2>
+            <ul id="nextSteps" class="step-list"></ul>
 
             <h2>Agent Trace</h2>
             <div id="trace" class="trace"></div>
