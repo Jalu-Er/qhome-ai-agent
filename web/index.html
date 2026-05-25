@@ -12,7 +12,8 @@
         <header class="topbar">
           <div>
             <p class="eyebrow">AI Agent Competition 2026</p>
-            <h1>QHome Customer Support & Product Advisor</h1>
+            <h1>QHome AI Support Desk</h1>
+            <p class="subtitle">Customer chat dengan triage multi-agent untuk staff.</p>
           </div>
           <label class="mode">
             <span>Mode</span>
@@ -28,7 +29,7 @@
             <div class="chat-header">
               <div>
                 <h2>Customer Chat</h2>
-                <p>Balasan customer berikutnya akan dianalisis ulang bersama history chat.</p>
+                <p>Percakapan pelanggan. Setiap balasan dianalisis ulang bersama history.</p>
               </div>
               <button id="resetButton" class="ghost">Reset</button>
             </div>
@@ -42,14 +43,26 @@
             <div id="chatThread" class="chat-thread"></div>
 
             <div class="composer">
-              <input id="customerName" value="Raka" aria-label="Nama pelanggan" />
-              <textarea id="message" aria-label="Pesan pelanggan" placeholder="Tulis pesan customer...">Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?</textarea>
+              <label>
+                <span>Customer</span>
+                <input id="customerName" value="Raka" aria-label="Nama pelanggan" />
+              </label>
+              <label class="message-field">
+                <span>Message</span>
+                <textarea id="message" aria-label="Pesan pelanggan" placeholder="Tulis pesan customer...">Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?</textarea>
+              </label>
               <button id="runButton" class="primary">Kirim</button>
             </div>
           </div>
 
           <aside class="staff-panel">
-            <div id="status" class="status idle">Staff triage panel siap.</div>
+            <div class="panel-title">
+              <div>
+                <h2>Staff Triage</h2>
+                <p>Keputusan internal dari 5 agent.</p>
+              </div>
+              <div id="status" class="status idle">Ready</div>
+            </div>
             <div class="summary-grid">
               <div>
                 <span>Intent</span>
