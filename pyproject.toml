@@ -1,0 +1,9 @@
+[project]
+name = "qhome-ai-agent"
+version = "0.1.0"
+description = "Customer support multi-agent MVP for AI Agent Competition 2026."
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]

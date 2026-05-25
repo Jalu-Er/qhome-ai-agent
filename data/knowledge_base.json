@@ -1,0 +1,45 @@
+{
+  "business_context": {
+    "company": "QHome Mart",
+    "domain": "Retail home improvement, building materials, furniture, and household needs",
+    "support_goal": "Resolve customer issues quickly while protecting customer satisfaction and operational cost."
+  },
+  "policies": [
+    {
+      "id": "POL-DELIVERY-DAMAGE",
+      "title": "Klaim barang rusak saat pengiriman",
+      "summary": "Pelanggan perlu melaporkan barang rusak maksimal 24 jam setelah diterima, menyertakan nomor pesanan, foto produk, foto kemasan, dan video unboxing jika tersedia.",
+      "keywords": ["rusak", "pecah", "retak", "pengiriman", "unboxing", "damage"]
+    },
+    {
+      "id": "POL-RETURN-7D",
+      "title": "Retur atau penukaran barang",
+      "summary": "Barang dapat diajukan retur atau tukar maksimal 7 hari kalender jika belum digunakan, kemasan masih lengkap, dan bukan produk custom atau clearance.",
+      "keywords": ["retur", "refund", "tukar", "pengembalian"]
+    },
+    {
+      "id": "POL-DELIVERY-TRACKING",
+      "title": "Pelacakan pengiriman",
+      "summary": "Status pengiriman dapat dicek menggunakan nomor pesanan atau resi. Keterlambatan di atas estimasi perlu dieskalasi ke fulfillment atau mitra logistik.",
+      "keywords": ["resi", "pengiriman", "terlambat", "belum sampai", "tracking"]
+    },
+    {
+      "id": "POL-WARRANTY",
+      "title": "Garansi produk",
+      "summary": "Produk bergaransi diproses sesuai ketentuan brand atau service center. Pelanggan perlu menyiapkan invoice dan dokumentasi kerusakan.",
+      "keywords": ["garansi", "service", "invoice", "rusak"]
+    },
+    {
+      "id": "POL-INSTALLATION",
+      "title": "Layanan instalasi",
+      "summary": "Permintaan instalasi memerlukan detail alamat, jadwal, jenis produk, dan kondisi lokasi. Biaya tambahan mengikuti jenis pekerjaan.",
+      "keywords": ["instalasi", "pasang", "jadwal", "alamat"]
+    },
+    {
+      "id": "POL-PAYMENT",
+      "title": "Konfirmasi pembayaran",
+      "summary": "Masalah pembayaran perlu divalidasi dengan nomor pesanan, metode pembayaran, waktu transaksi, dan bukti pembayaran.",
+      "keywords": ["bayar", "pembayaran", "transfer", "invoice"]
+    }
+  ]
+}

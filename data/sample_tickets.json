@@ -1,0 +1,23 @@
+[
+  {
+    "id": "damaged-ceramic-delivery",
+    "customer_name": "Ibu Ratna",
+    "channel": "WhatsApp",
+    "subject": "Keramik datang dalam kondisi pecah",
+    "message": "Pesanan QH-10482 baru sampai pagi ini, tapi 6 dus keramik ada yang pecah dan retak. Saya butuh dipasang minggu ini, mohon dibantu cepat."
+  },
+  {
+    "id": "late-delivery",
+    "customer_name": "Pak Budi",
+    "channel": "Email",
+    "subject": "Pesanan belum sampai dari estimasi",
+    "message": "Nomor pesanan QH-11820 seharusnya sampai kemarin, tapi sampai sekarang belum ada kabar. Bisa tolong cek posisi pengirimannya?"
+  },
+  {
+    "id": "return-faucet",
+    "customer_name": "Dina",
+    "channel": "Live Chat",
+    "subject": "Ingin tukar keran karena salah ukuran",
+    "message": "Saya membeli keran wastafel 3 hari lalu tapi ternyata ukurannya tidak cocok. Barang belum dipakai dan dus masih ada. Apakah bisa ditukar?"
+  }
+]

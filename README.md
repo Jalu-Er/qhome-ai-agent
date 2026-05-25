@@ -2,11 +2,46 @@
 
 Project submission untuk AI Agent Competition 2026.
 
-Target MVP: sistem multi-agent AI yang membantu proses bisnis QHome Mart dengan workflow terstruktur, komunikasi antar agent, log interaksi, dan output terukur.
+QHome AI Agent adalah MVP sistem multi-agent untuk membantu triage customer support QHome Mart. Sistem menerima pertanyaan atau komplain pelanggan, lalu beberapa agent bekerja sama untuk mengklasifikasi intent, mengambil knowledge base yang relevan, menyusun solusi, menentukan prioritas/eskalasi, dan membuat jawaban final yang terstruktur.
 
-## Status
+## Kenapa Multi-Agent?
 
-Repository awal sudah disiapkan. Implementasi agent akan ditambahkan setelah use case final dipilih.
+Setiap agent memiliki tanggung jawab berbeda:
+
+1. `intent_classifier`: mengidentifikasi intent, kategori, ringkasan, dan data yang kurang.
+2. `knowledge_retrieval`: memilih kebijakan/FAQ lokal yang relevan.
+3. `solution_planner`: menyusun rencana solusi.
+4. `priority_escalation`: menentukan prioritas, SLA, risiko bisnis, dan eskalasi.
+5. `qa_final_response`: mengecek konsistensi dan membuat jawaban final.
+
+Workflow dijalankan oleh orchestrator sequential dengan shared state. Semua hasil agent dicatat ke `interactions.jsonl`, lalu output akhir disimpan sebagai JSON dan report Markdown.
+
+```text
+Customer Ticket
+  -> Intent Classifier
+  -> Knowledge Retrieval
+  -> Solution Planner
+  -> Priority & Escalation
+  -> QA & Final Response
+  -> final_output.json + report.md + interactions.jsonl
+```
+
+## Cara Menjalankan
+
+Project ini bisa berjalan dengan Python standard library saja. Tidak perlu install dependency untuk mode mock.
+
+```bash
+python3 run.py list-tickets
+python3 run.py run --mode mock --ticket-id damaged-ceramic-delivery
+```
+
+Output akan dibuat di folder `runs/<run-id>/`.
+
+Contoh custom ticket:
+
+```bash
+python3 run.py run --mode mock --ticket-text "Pesanan QH-10001 belum sampai padahal estimasi kemarin. Tolong dicek."
+```
 
 ## SumoPod AI
 
@@ -18,7 +53,38 @@ AI_BASE_URL=https://ai.sumopod.com/v1
 AI_MODEL=gpt-4o-mini
 ```
 
-Jangan commit API key ke repository.
+Jalankan live mode:
+
+```bash
+python3 run.py run --mode live --ticket-id damaged-ceramic-delivery
+```
+
+Jangan commit API key ke repository. `.env.example` aman karena hanya template, sedangkan `.env` berisi secret dan sudah masuk `.gitignore`.
+
+## Test
+
+```bash
+python3 -m unittest discover -s tests
+```
+
+## Struktur Project
+
+```text
+data/
+  knowledge_base.json       Sample policy/FAQ QHome Mart
+  sample_tickets.json       Sample customer tickets
+docs/
+  architecture.md           Detail arsitektur
+  competition-context.md    Konteks lomba
+  project-plan.md           Rencana kerja sampai submission
+  submission-description.md Draft deskripsi submission
+src/qhome_ai_agent/
+  agents.py                 Definisi 5 agent
+  orchestrator.py           Workflow multi-agent
+  llm.py                    Client SumoPod OpenAI-compatible
+  mock_llm.py               Mode mock reproducible
+  report.py                 Markdown report generator
+```
 
 ## Deliverable Lomba
 
