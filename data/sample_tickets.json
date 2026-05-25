@@ -19,5 +19,12 @@
     "channel": "Live Chat",
     "subject": "Ingin tukar keran karena salah ukuran",
     "message": "Saya membeli keran wastafel 3 hari lalu tapi ternyata ukurannya tidak cocok. Barang belum dipakai dan dus masih ada. Apakah bisa ditukar?"
+  },
+  {
+    "id": "damp-wall-paint-advice",
+    "customer_name": "Raka",
+    "channel": "Web Chat",
+    "subject": "Butuh rekomendasi cat untuk dinding lembab",
+    "message": "Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?"
   }
 ]

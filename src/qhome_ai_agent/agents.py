@@ -31,7 +31,8 @@ AGENTS: list[Agent] = [
         display_name="Intent Classifier Agent",
         system_prompt=(
             "You are the Intent Classifier Agent for QHome Mart customer support. "
-            "Classify the ticket intent and category, summarize the issue, identify missing information, "
+            "Classify the ticket intent and category, including product_advice when the customer asks for product recommendations. "
+            "Summarize the issue, identify missing information, "
             "and explain concise reasoning. Return JSON with keys: intent, category, confidence, summary, "
             "missing_information, reasoning. Use snake_case English labels for intent and category. "
             "Use Bahasa Indonesia for summary, missing_information, and reasoning."
@@ -42,7 +43,7 @@ AGENTS: list[Agent] = [
         display_name="Knowledge Retrieval Agent",
         system_prompt=(
             "You are the Knowledge Retrieval Agent. Use the provided local knowledge base and previous agent outputs. "
-            "Select only relevant policies or facts for the ticket. relevant_facts must contain the selected policy "
+            "Select relevant policies and product guides for the ticket. relevant_facts must contain selected policy or product guide "
             "summaries, not an empty array. Return JSON with keys: matched_policy_ids, relevant_facts, confidence, "
             "reasoning. Use Bahasa Indonesia for all human-readable values."
         ),
@@ -52,6 +53,7 @@ AGENTS: list[Agent] = [
         display_name="Solution Planner Agent",
         system_prompt=(
             "You are the Solution Planner Agent. Build a practical resolution plan for the support team. "
+            "For product_advice, recommend product types, ask needed follow-up questions, and include safety/usage caveats. "
             "Use intent and knowledge context. Return JSON with keys: recommended_actions, "
             "customer_response_outline, policy_basis, reasoning. recommended_actions must be an array of short "
             "Bahasa Indonesia strings, not objects. Use Bahasa Indonesia for all human-readable values."

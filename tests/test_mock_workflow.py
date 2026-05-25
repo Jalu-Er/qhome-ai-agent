@@ -31,6 +31,25 @@ class MockWorkflowTest(unittest.TestCase):
         self.assertTrue((ROOT / "runs-test/test-run/final_output.json").exists())
         self.assertTrue((ROOT / "runs-test/test-run/interactions.jsonl").exists())
 
+    def test_product_advice_uses_relevant_product_guide(self) -> None:
+        tickets = read_json(ROOT / "data/sample_tickets.json")
+        knowledge_base = read_json(ROOT / "data/knowledge_base.json")
+        ticket = next(item for item in tickets if item["id"] == "damp-wall-paint-advice")
+
+        output = run_workflow(
+            model=MockChatModel(),
+            ticket=ticket,
+            knowledge_base=knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="product-test-run",
+        )
+
+        matched_ids = output["agent_outputs"]["knowledge_retrieval"]["matched_policy_ids"]
+        self.assertEqual(output["final"]["intent"], "product_advice")
+        self.assertIn("GUIDE-DAMP-WALL-PAINT", matched_ids)
+        self.assertNotIn("GUIDE-LED-LIGHTING", matched_ids)
+        self.assertFalse(output["final"]["escalate"])
+
 
 if __name__ == "__main__":
     unittest.main()

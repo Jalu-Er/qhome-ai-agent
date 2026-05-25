@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QHome AI Agent</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">AI Agent Competition 2026</p>
+            <h1>QHome Customer Support & Product Advisor</h1>
+          </div>
+          <label class="mode">
+            <span>Mode</span>
+            <select id="mode">
+              <option value="mock">Mock</option>
+              <option value="live">Live SumoPod</option>
+            </select>
+          </label>
+        </header>
+
+        <section class="chat-layout">
+          <div class="chat-panel">
+            <div class="sample-row">
+              <button data-sample="Pesanan QH-10482 baru sampai pagi ini, tapi 6 dus keramik ada yang pecah dan retak. Saya butuh dipasang minggu ini, mohon dibantu cepat.">Barang rusak</button>
+              <button data-sample="Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?">Cat dinding lembab</button>
+              <button data-sample="Nomor pesanan QH-11820 seharusnya sampai kemarin, tapi sampai sekarang belum ada kabar. Bisa tolong cek posisi pengirimannya?">Delivery terlambat</button>
+            </div>
+
+            <label class="field">
+              <span>Nama pelanggan</span>
+              <input id="customerName" value="Raka" />
+            </label>
+
+            <label class="field grow">
+              <span>Pesan pelanggan</span>
+              <textarea id="message">Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?</textarea>
+            </label>
+
+            <button id="runButton" class="primary">Jalankan 5 Agent</button>
+          </div>
+
+          <aside class="result-panel">
+            <div id="status" class="status idle">Siap menjalankan workflow multi-agent.</div>
+            <div class="summary-grid">
+              <div>
+                <span>Intent</span>
+                <strong id="intent">-</strong>
+              </div>
+              <div>
+                <span>Priority</span>
+                <strong id="priority">-</strong>
+              </div>
+              <div>
+                <span>Escalate</span>
+                <strong id="escalate">-</strong>
+              </div>
+            </div>
+
+            <h2>Jawaban Final</h2>
+            <div id="reply" class="reply empty">Belum ada hasil.</div>
+
+            <h2>Agent Trace</h2>
+            <div id="trace" class="trace"></div>
+          </aside>
+        </section>
+      </section>
+    </main>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>

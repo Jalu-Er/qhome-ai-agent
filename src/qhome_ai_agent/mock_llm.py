@@ -32,7 +32,10 @@ class MockChatModel:
         raise ValueError(f"Unknown mock agent: {agent_name}")
 
     def _intent(self, text: str) -> dict[str, Any]:
-        if any(word in text for word in ["pecah", "rusak", "retak", "damage"]):
+        if any(word in text for word in ["cat", "dinding", "lembab", "jamur", "rekomendasi", "pakai apa"]):
+            intent = "product_advice"
+            category = "product_consultation"
+        elif any(word in text for word in ["pecah", "rusak", "retak", "damage"]):
             intent = "damaged_item"
             category = "delivery_issue"
         elif any(word in text for word in ["belum sampai", "terlambat", "resi", "kirim"]):
@@ -49,27 +52,40 @@ class MockChatModel:
             "intent": intent,
             "category": category,
             "confidence": 0.84,
-            "summary": "Pelanggan membutuhkan bantuan support terkait pesanan QHome Mart.",
-            "missing_information": ["nomor pesanan"] if "qh-" not in text else [],
-            "reasoning": "Kata kunci pada pesan pelanggan dipetakan ke kategori support yang paling relevan.",
+            "summary": "Pelanggan membutuhkan bantuan QHome Mart terkait layanan atau rekomendasi produk.",
+            "missing_information": self._missing_information(intent, text),
+            "reasoning": "Kata kunci pada pesan pelanggan dipetakan ke kategori layanan atau konsultasi produk yang paling relevan.",
         }
 
     def _knowledge(self, knowledge_base: dict[str, Any], text: str) -> dict[str, Any]:
-        matched = []
-        for policy in knowledge_base.get("policies", []):
+        scored = []
+        entries = knowledge_base.get("policies", []) + knowledge_base.get("product_guides", [])
+        for policy in entries:
             haystack = " ".join(
                 [
                     policy.get("id", ""),
                     policy.get("title", ""),
                     policy.get("summary", ""),
                     " ".join(policy.get("keywords", [])),
+                    " ".join(policy.get("recommended_product_types", [])),
                 ]
             ).lower()
-            if any(token in haystack for token in text.split() if len(token) > 4):
-                matched.append(policy)
+            keywords = {keyword.lower() for keyword in policy.get("keywords", [])}
+            tokens = {token.strip(".,?!").lower() for token in text.split() if len(token.strip(".,?!")) > 4}
+            score = len(tokens.intersection(keywords))
+            if policy.get("id", "").startswith("GUIDE") and any(word in text for word in ["rekomendasi", "pakai apa", "butuh"]):
+                score += 1
+            if any(token in haystack for token in tokens.intersection(keywords)):
+                score += 1
+            if score:
+                scored.append((score, policy))
 
+        scored.sort(key=lambda item: item[0], reverse=True)
+        matched = [policy for score, policy in scored if score >= scored[0][0]] if scored else []
+        if len(matched) < 1 and scored:
+            matched = [scored[0][1]]
         if not matched:
-            matched = knowledge_base.get("policies", [])[:2]
+            matched = entries[:2]
 
         return {
             "matched_policy_ids": [item["id"] for item in matched[:3]],
@@ -81,7 +97,14 @@ class MockChatModel:
     def _solution(self, outputs: dict[str, Any]) -> dict[str, Any]:
         intent = outputs.get("intent_classifier", {}).get("intent", "general_support")
         facts = outputs.get("knowledge_retrieval", {}).get("relevant_facts", [])
-        if intent == "damaged_item":
+        if intent == "product_advice":
+            actions = [
+                "Tanyakan lokasi dinding, tingkat lembab, dan apakah ada rembes aktif.",
+                "Sarankan memperbaiki sumber lembab terlebih dahulu jika ada rembes aktif.",
+                "Rekomendasikan alkali resisting primer atau wall sealer anti lembab sebelum cat akhir.",
+                "Pilih cat anti jamur sesuai area indoor atau outdoor setelah permukaan siap.",
+            ]
+        elif intent == "damaged_item":
             actions = [
                 "Minta nomor pesanan, foto produk rusak, foto kemasan, dan video unboxing jika ada.",
                 "Validasi apakah laporan masih dalam batas waktu klaim kerusakan.",
@@ -114,6 +137,15 @@ class MockChatModel:
     def _priority(self, outputs: dict[str, Any], text: str) -> dict[str, Any]:
         intent = outputs.get("intent_classifier", {}).get("intent", "")
         high_risk = intent == "damaged_item" or any(word in text for word in ["komplain", "marah", "urgent"])
+        if intent == "product_advice":
+            return {
+                "priority": "medium",
+                "escalate": False,
+                "escalation_team": None,
+                "sla_recommendation": "Respond within 1 business day",
+                "business_risk": "Risiko rendah-sedang: rekomendasi produk perlu caveat agar pelanggan tidak salah aplikasi.",
+                "reasoning": "Konsultasi produk tidak perlu eskalasi langsung, tetapi perlu pertanyaan lanjutan dan batasan penggunaan.",
+            }
         return {
             "priority": "high" if high_risk else "medium",
             "escalate": high_risk,
@@ -128,11 +160,20 @@ class MockChatModel:
         solution = outputs.get("solution_planner", {})
         priority = outputs.get("priority_escalation", {})
         actions = solution.get("recommended_actions", [])
-        response = (
-            f"Halo {ticket.get('customer_name', 'Kak')}, mohon maaf atas kendalanya. "
-            "Agar tim kami bisa membantu dengan cepat, mohon kirimkan nomor pesanan dan bukti pendukung. "
-            f"Langkah yang akan kami lakukan: {'; '.join(actions[:3])}"
-        )
+        if intent.get("intent") == "product_advice":
+            response = (
+                f"Halo {ticket.get('customer_name', 'Kak')}, untuk dinding lembab sebaiknya jangan langsung ditutup cat akhir. "
+                "Cek dulu apakah ada rembes aktif. Jika ada, sumber lembabnya perlu diperbaiki atau diberi waterproofing. "
+                "Setelah permukaan bersih dan kering, gunakan alkali resisting primer atau wall sealer anti lembab, "
+                "lalu pilih cat anti jamur yang sesuai area indoor/outdoor. "
+                "Boleh info dindingnya di dalam/luar rumah dan lembabnya berupa jamur, noda, atau rembes?"
+            )
+        else:
+            response = (
+                f"Halo {ticket.get('customer_name', 'Kak')}, mohon maaf atas kendalanya. "
+                "Agar tim kami bisa membantu dengan cepat, mohon kirimkan nomor pesanan dan bukti pendukung. "
+                f"Langkah yang akan kami lakukan: {'; '.join(actions[:3])}"
+            )
         return {
             "ticket_summary": intent.get("summary", "Ticket pelanggan membutuhkan tindak lanjut."),
             "intent": intent.get("intent"),
@@ -149,3 +190,13 @@ class MockChatModel:
             },
             "reasoning": "Jawaban final menggabungkan klasifikasi, policy basis, rencana solusi, dan prioritas eskalasi.",
         }
+
+    def _missing_information(self, intent: str, text: str) -> list[str]:
+        if intent == "product_advice":
+            missing = []
+            if "indoor" not in text and "outdoor" not in text and "dalam" not in text and "luar" not in text:
+                missing.append("lokasi dinding indoor atau outdoor")
+            if "rembes" not in text:
+                missing.append("apakah ada rembes aktif")
+            return missing
+        return ["nomor pesanan"] if "qh-" not in text else []

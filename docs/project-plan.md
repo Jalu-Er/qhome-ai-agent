@@ -1,4 +1,4 @@
-# Project Plan: QHome Customer Support Multi-Agent
+# Project Plan: QHome Customer Support & Product Advisor Multi-Agent
 
 Last updated: 2026-05-25.
 
@@ -8,14 +8,15 @@ Membangun MVP AI Agent untuk AI Agent Competition 2026 yang menunjukkan sistem m
 
 ## Use Case Final
 
-Customer Support Triage Agent untuk konteks retail/home improvement.
+Customer Support & Product Advisor Agent untuk konteks retail/home improvement.
 
-Sistem menerima pertanyaan atau komplain pelanggan, lalu menghasilkan:
+Sistem menerima pertanyaan produk atau komplain pelanggan, lalu menghasilkan:
 
 - klasifikasi intent pelanggan,
 - tingkat prioritas,
 - ringkasan masalah,
 - rekomendasi solusi,
+- rekomendasi tipe produk jika ticket berupa konsultasi produk,
 - keputusan eskalasi,
 - jawaban final untuk pelanggan,
 - log reasoning antar agent,
@@ -26,8 +27,9 @@ Sistem menerima pertanyaan atau komplain pelanggan, lalu menghasilkan:
 Yang dikerjakan:
 
 - CLI/backend Python untuk menjalankan workflow multi-agent.
+- Web chatbox sederhana untuk demo.
 - 5 agent dengan peran jelas.
-- Sample knowledge base dan sample customer tickets.
+- Sample knowledge base, product guides, dan sample customer tickets.
 - Structured output JSON.
 - Log setiap interaksi agent ke file.
 - README lengkap untuk setup, run, dan demo.
@@ -47,10 +49,10 @@ Yang tidak dikerjakan untuk MVP:
    - Mengidentifikasi intent, kategori masalah, dan informasi yang kurang.
 
 2. Knowledge Retrieval Agent
-   - Mengambil kebijakan/FAQ/data dummy yang relevan dari knowledge base lokal.
+   - Mengambil kebijakan/FAQ/product guide yang relevan dari knowledge base lokal.
 
 3. Solution Planner Agent
-   - Menyusun opsi solusi dan langkah tindak lanjut.
+   - Menyusun opsi solusi, rekomendasi tipe produk, dan langkah tindak lanjut.
 
 4. Priority & Escalation Agent
    - Menilai urgency, risiko bisnis, dan perlu tidaknya eskalasi ke manusia.
@@ -60,10 +62,10 @@ Yang tidak dikerjakan untuk MVP:
 
 ## Arsitektur MVP
 
-Input ticket pelanggan masuk ke orchestrator. Orchestrator menjalankan agent berurutan dengan shared state. Setiap agent menerima state sebelumnya, menambahkan hasil analisisnya, lalu hasilnya dicatat ke log. Agent terakhir menghasilkan final response dan structured JSON.
+Input chat/ticket pelanggan masuk ke orchestrator. Orchestrator menjalankan agent berurutan dengan shared state. Setiap agent menerima state sebelumnya, menambahkan hasil analisisnya, lalu hasilnya dicatat ke log. Agent terakhir menghasilkan final response dan structured JSON.
 
 ```text
-Customer Ticket
+Customer Chat/Ticket
   -> Intent Classifier
   -> Knowledge Retrieval
   -> Solution Planner
@@ -96,6 +98,7 @@ Catatan:
 - Buat OpenAI-compatible client untuk SumoPod.
 - Buat schema data ticket, agent result, dan final output.
 - Buat knowledge base dummy.
+- Buat product guides dummy untuk pertanyaan produk.
 - Buat orchestrator sequential.
 
 ### Day 2: Agent Logic
@@ -134,6 +137,7 @@ Project siap submit jika:
 - Bisa dijalankan dengan SumoPod API.
 - Bisa dijalankan dalam mock mode tanpa API key.
 - Ada minimal 3 sample ticket.
+- Ada minimal 1 sample konsultasi produk.
 - Ada log interaksi agent.
 - Ada output JSON dan report.
 - Ada dokumen deskripsi submission.
@@ -141,4 +145,4 @@ Project siap submit jika:
 
 ## Pitch Singkat
 
-QHome Customer Support Multi-Agent membantu tim support memproses pertanyaan dan komplain pelanggan secara lebih cepat dan konsisten. Sistem membagi pekerjaan ke beberapa agent spesialis: klasifikasi intent, pencarian knowledge base, perencanaan solusi, penilaian prioritas/eskalasi, dan QA jawaban final. Output akhirnya terstruktur, dapat dilacak melalui log interaksi agent, dan bisa dipakai sebagai dasar efisiensi operasional customer service.
+QHome Customer Support & Product Advisor Multi-Agent membantu tim support memproses pertanyaan produk dan komplain pelanggan secara lebih cepat dan konsisten. Sistem membagi pekerjaan ke beberapa agent spesialis: klasifikasi intent, pencarian knowledge base, perencanaan solusi/rekomendasi, penilaian prioritas/eskalasi, dan QA jawaban final. Output akhirnya terstruktur, dapat dilacak melalui log interaksi agent, dan bisa dipakai sebagai dasar efisiensi operasional customer service sekaligus peningkatan kualitas konsultasi produk.

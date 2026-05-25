@@ -9,6 +9,7 @@ from .io_utils import read_json
 from .llm import SumoPodChatModel
 from .mock_llm import MockChatModel
 from .orchestrator import run_workflow
+from .web import serve
 
 
 def project_root() -> Path:
@@ -30,6 +31,10 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--tickets", default="data/sample_tickets.json")
     run_parser.add_argument("--knowledge-base", default="data/knowledge_base.json")
     run_parser.add_argument("--output-dir", default="runs")
+
+    web_parser = subparsers.add_parser("web", help="Start the local web chatbox demo.")
+    web_parser.add_argument("--host", default="127.0.0.1")
+    web_parser.add_argument("--port", type=int, default=8000)
     return parser
 
 
@@ -94,6 +99,9 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(command_list_tickets(args))
     if args.command == "run":
         raise SystemExit(command_run(args))
+    if args.command == "web":
+        serve(project_root(), host=args.host, port=args.port)
+        raise SystemExit(0)
     raise SystemExit(2)
 
 

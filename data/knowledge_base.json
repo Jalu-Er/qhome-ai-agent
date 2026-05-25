@@ -2,7 +2,7 @@
   "business_context": {
     "company": "QHome Mart",
     "domain": "Retail home improvement, building materials, furniture, and household needs",
-    "support_goal": "Resolve customer issues quickly while protecting customer satisfaction and operational cost."
+    "support_goal": "Resolve customer issues and product questions quickly while protecting customer satisfaction, safety, and operational cost."
   },
   "policies": [
     {
@@ -40,6 +40,93 @@
       "title": "Konfirmasi pembayaran",
       "summary": "Masalah pembayaran perlu divalidasi dengan nomor pesanan, metode pembayaran, waktu transaksi, dan bukti pembayaran.",
       "keywords": ["bayar", "pembayaran", "transfer", "invoice"]
+    }
+  ],
+  "product_guides": [
+    {
+      "id": "GUIDE-DAMP-WALL-PAINT",
+      "title": "Rekomendasi cat untuk dinding lembab",
+      "summary": "Untuk dinding lembab, jangan langsung ditutup cat dekoratif. Cek sumber lembab terlebih dahulu, bersihkan jamur/garam, gunakan alkali resisting primer atau sealer anti lembab, lalu pilih cat interior/exterior anti jamur sesuai lokasi dinding. Jika rembes aktif masih terjadi, rekomendasikan waterproofing atau perbaikan sumber air sebelum pengecatan.",
+      "recommended_product_types": [
+        "alkali resisting primer",
+        "wall sealer anti lembab",
+        "cat anti jamur",
+        "waterproofing coating untuk area rembes"
+      ],
+      "questions_to_ask": [
+        "Dinding berada di area indoor atau outdoor?",
+        "Lembabnya berupa noda, jamur, mengelupas, atau rembes aktif?",
+        "Apakah dinding bersebelahan dengan kamar mandi, area luar, atau pipa air?",
+        "Apakah cat lama sudah mengelupas?"
+      ],
+      "warnings": [
+        "Jangan menjanjikan cat akan menyelesaikan rembes aktif tanpa perbaikan sumber lembab.",
+        "Sarankan tes area kecil dan ikuti instruksi produk."
+      ],
+      "keywords": ["cat", "dinding", "lembab", "jamur", "rembes", "mengelupas", "sealer", "primer", "waterproofing"]
+    },
+    {
+      "id": "GUIDE-BATHROOM-LEAK",
+      "title": "Solusi awal kebocoran kamar mandi",
+      "summary": "Untuk kebocoran kamar mandi, identifikasi sumber bocor dari nat keramik, floor drain, pipa, atau retakan. Produk yang relevan dapat berupa waterproofing coating, semen instan perbaikan retak, sealant silikon sanitary, atau pengisi nat anti air.",
+      "recommended_product_types": [
+        "waterproofing coating",
+        "sealant silikon sanitary",
+        "pengisi nat anti air",
+        "semen instan perbaikan retak"
+      ],
+      "questions_to_ask": [
+        "Bocor muncul di lantai, dinding, plafon bawah, atau area pipa?",
+        "Apakah kebocoran terjadi terus menerus atau hanya saat kamar mandi dipakai?",
+        "Apakah nat keramik terlihat retak atau kosong?"
+      ],
+      "warnings": [
+        "Jika sumber bocor dari pipa dalam dinding, rekomendasikan pemeriksaan teknisi.",
+        "Waterproofing perlu permukaan bersih dan kering agar menempel baik."
+      ],
+      "keywords": ["bocor", "kamar mandi", "nat", "waterproofing", "sealant", "retak", "pipa"]
+    },
+    {
+      "id": "GUIDE-CERAMIC-SELECTION",
+      "title": "Pemilihan keramik lantai",
+      "summary": "Untuk lantai area basah, prioritaskan keramik bertekstur atau anti slip. Untuk ruang tamu, pilih keramik sesuai ukuran ruangan, traffic, dan gaya interior. Pastikan menghitung cadangan 5-10 persen untuk potongan dan penggantian.",
+      "recommended_product_types": [
+        "keramik anti slip",
+        "homogeneous tile",
+        "perekat keramik",
+        "nat keramik"
+      ],
+      "questions_to_ask": [
+        "Keramik untuk indoor, outdoor, kamar mandi, atau garasi?",
+        "Berapa ukuran ruangan?",
+        "Apakah butuh permukaan anti slip?"
+      ],
+      "warnings": [
+        "Area basah sebaiknya tidak memakai permukaan terlalu licin.",
+        "Hitung cadangan keramik untuk potongan dan warna batch."
+      ],
+      "keywords": ["keramik", "lantai", "anti slip", "kamar mandi", "garasi", "nat", "perekat"]
+    },
+    {
+      "id": "GUIDE-LED-LIGHTING",
+      "title": "Pemilihan lampu LED rumah",
+      "summary": "Pemilihan lampu LED perlu menyesuaikan lumen, watt, warna cahaya, dan fungsi ruangan. Warm white cocok untuk suasana santai, neutral white untuk area umum, dan cool white untuk area kerja.",
+      "recommended_product_types": [
+        "lampu LED warm white",
+        "lampu LED neutral white",
+        "lampu LED cool white",
+        "downlight LED"
+      ],
+      "questions_to_ask": [
+        "Lampu untuk ruangan apa?",
+        "Butuh cahaya hangat, natural, atau terang untuk kerja?",
+        "Berapa luas ruangannya?"
+      ],
+      "warnings": [
+        "Jangan hanya melihat watt; lumen lebih menunjukkan tingkat terang.",
+        "Pastikan fitting dan tegangan sesuai."
+      ],
+      "keywords": ["lampu", "led", "watt", "lumen", "warm white", "cool white", "downlight"]
     }
   ]
 }
