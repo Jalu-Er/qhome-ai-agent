@@ -168,7 +168,7 @@ function renderEmptyPanel() {
 
 function renderList(target, values) {
   target.innerHTML = "";
-  const items = Array.isArray(values) ? values : [values].filter(Boolean);
+  const items = normalizeList(values);
   if (!items.length) {
     const item = document.createElement("li");
     item.textContent = "Tidak ada.";
@@ -183,8 +183,8 @@ function renderList(target, values) {
 }
 
 function inferStatus(final, classifier) {
-  const missing = classifier.missing_information || [];
-  if (Array.isArray(missing) && missing.length) {
+  const missing = normalizeList(classifier.missing_information);
+  if (missing.length) {
     return "waiting_customer_info";
   }
   if (final.escalate) {
@@ -202,8 +202,8 @@ function buildTranscript() {
 
 function buildHandoff(data, classifier) {
   const final = data.final || {};
-  const missing = classifier.missing_information || [];
-  const steps = final.internal_next_steps || [];
+  const missing = normalizeList(classifier.missing_information);
+  const steps = normalizeList(final.internal_next_steps);
   return [
     `Run ID: ${data.run_id || "-"}`,
     `Status: ${inferStatus(final, classifier)}`,
@@ -221,6 +221,22 @@ function buildHandoff(data, classifier) {
     "Conversation Transcript:",
     buildTranscript(),
   ].join("\n");
+}
+
+function normalizeList(value) {
+  if (Array.isArray(value)) {
+    return value.filter((item) => item !== null && item !== undefined && item !== "");
+  }
+  if (value === null || value === undefined || value === "") {
+    return [];
+  }
+  if (typeof value === "string") {
+    return [value];
+  }
+  if (typeof value === "object") {
+    return Object.entries(value).map(([key, item]) => `${key}: ${typeof item === "string" ? item : JSON.stringify(item)}`);
+  }
+  return [String(value)];
 }
 
 function setStatus(kind, text) {
