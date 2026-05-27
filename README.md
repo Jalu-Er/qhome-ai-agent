@@ -112,6 +112,22 @@ Jangan commit API key ke repository. `.env.example` aman karena hanya template, 
 python3 -m unittest discover -s tests
 ```
 
+## Evaluation Fit
+
+Project ini dirancang untuk menonjolkan kriteria penilaian kompetisi:
+
+- **Kualitas reasoning agent**: setiap agent memiliki peran dan prompt berbeda, lalu outputnya tercatat dalam trace.
+- **Kolaborasi antar agent**: workflow memakai shared state dari klasifikasi, retrieval, planning, escalation, sampai final response.
+- **Dampak dunia nyata**: use case fokus pada CS triage, product advice, dan sales/order handoff untuk operasional retail home improvement.
+- **Kejelasan arsitektur**: diagram dan dokumen arsitektur tersedia di `docs/architecture.md`.
+- **Reproducibility**: demo dapat berjalan dalam mock mode tanpa API key, serta live mode memakai SumoPod/OpenAI-compatible API.
+
+## Deployment
+
+Deployment public untuk demo dapat dilakukan di Ubuntu/LXC dengan Nginx reverse proxy dan systemd service. Panduan langkah demi langkah tersedia di [`docs/deployment.md`](docs/deployment.md).
+
+Catatan: staff dashboard berisi data percakapan, jadi untuk public demo sebaiknya endpoint `/staff`, `/api/sessions`, `/api/session`, dan `/api/session/update` dilindungi Basic Auth di Nginx.
+
 ## Struktur Project
 
 ```text
@@ -135,9 +151,3 @@ web/
   staff.js                  Logic dashboard + ticket queue
   styles.css                Shared styles
 ```
-
-## Deliverable Lomba
-
-- Deskripsi AI Agent minimal 500 karakter.
-- Video presentasi 3-5 menit.
-- Repository GitHub publik berisi dokumentasi dan cara menjalankan project.
