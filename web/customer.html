@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QHome Mart — Bantuan Pelanggan</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="page-customer">
+    <div class="chat-app">
+      <header class="chat-header">
+        <svg class="brand-icon" width="32" height="32" viewBox="0 0 32 32" fill="none">
+          <rect width="32" height="32" rx="8" fill="#1268df"/>
+          <path d="M9 22V13l7-6 7 6v9h-5v-5h-4v5H9z" fill="#fff"/>
+        </svg>
+        <div>
+          <h1>QHome Mart</h1>
+          <p>Bantuan Pelanggan</p>
+        </div>
+      </header>
+
+      <div id="chatThread" class="chat-thread"></div>
+
+      <div class="quick-samples" id="samples">
+        <span>Coba tanyakan:</span>
+        <button data-sample="Pesanan QH-10482 baru sampai pagi ini, tapi 6 dus keramik ada yang pecah dan retak. Saya butuh dipasang minggu ini, mohon dibantu cepat.">Barang rusak</button>
+        <button data-sample="Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?">Cat dinding lembab</button>
+        <button data-sample="Saya ingin pesan semen 10 pack, batu bata 10000 buah, dan besi 400 buah. Alamat saya di Jl Bantul, Bantul, Yogyakarta. Pembayaran transfer BNI, apakah bisa dikirim hari ini?">Order bahan bangunan</button>
+        <button data-sample="Nomor pesanan QH-11820 seharusnya sampai kemarin, tapi sampai sekarang belum ada kabar. Bisa tolong cek?">Pesanan terlambat</button>
+      </div>
+
+      <div class="composer">
+        <div class="composer-row">
+          <input id="customerName" placeholder="Nama Anda" aria-label="Nama pelanggan" />
+          <textarea id="message" placeholder="Tulis pesan Anda..." aria-label="Pesan" rows="1"></textarea>
+          <button id="sendBtn" class="send-btn" aria-label="Kirim pesan">
+            <svg width="18" height="18" viewBox="0 0 16 16" fill="none"><path d="M14.5 1.5L7 9m7.5-7.5L10 14.5 7 9m7.5-7.5L1.5 6 7 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <footer class="chat-footer">
+        <span>Powered by QHome AI Agent</span>
+        <select id="mode" aria-label="Mode">
+          <option value="mock">Demo</option>
+          <option value="live">Live</option>
+        </select>
+      </footer>
+    </div>
+    <script src="/static/customer.js"></script>
+  </body>
+</html>

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 
@@ -35,6 +36,9 @@ class MockChatModel:
         if any(word in text for word in ["cat", "dinding", "lembab", "jamur", "rekomendasi", "pakai apa"]):
             intent = "product_advice"
             category = "product_consultation"
+        elif self._is_bulk_order(text):
+            intent = "bulk_order_delivery"
+            category = "sales_order"
         elif any(word in text for word in ["pecah", "rusak", "retak", "damage"]):
             intent = "damaged_item"
             category = "delivery_issue"
@@ -84,6 +88,8 @@ class MockChatModel:
                 score += 4
             if intent == "return_or_refund" and policy.get("id") == "POL-RETURN-7D":
                 score += 4
+            if intent == "bulk_order_delivery" and policy.get("id") == "POL-BULK-ORDER-DELIVERY":
+                score += 5
             if any(token in haystack for token in tokens.intersection(keywords)):
                 score += 1
             if score:
@@ -113,6 +119,20 @@ class MockChatModel:
                 "Rekomendasikan alkali resisting primer atau wall sealer anti lembab sebelum cat akhir.",
                 "Pilih cat anti jamur sesuai area indoor atau outdoor setelah permukaan siap.",
             ]
+        elif intent == "bulk_order_delivery":
+            missing = outputs.get("intent_classifier", {}).get("missing_information", [])
+            if missing:
+                actions = [
+                    "Minta nomor HP/WhatsApp aktif sebelum diteruskan ke staff toko.",
+                    "Catat alamat, daftar item, jumlah, dan metode pembayaran yang sudah diberikan.",
+                    "Staff perlu validasi stok, ongkir, armada, dan estimasi tiba sebelum konfirmasi order.",
+                ]
+            else:
+                actions = [
+                    "Teruskan ringkasan pesanan ke staff toko/logistik.",
+                    "Validasi stok semen, batu bata, dan besi sesuai jumlah.",
+                    "Hitung ongkir, armada, estimasi tiba, lalu hubungi pelanggan melalui kontak yang diberikan.",
+                ]
         elif intent == "damaged_item":
             missing = outputs.get("intent_classifier", {}).get("missing_information", [])
             if missing:
@@ -163,6 +183,15 @@ class MockChatModel:
                 "business_risk": "Risiko rendah-sedang: rekomendasi produk perlu caveat agar pelanggan tidak salah aplikasi.",
                 "reasoning": "Konsultasi produk tidak perlu eskalasi langsung, tetapi perlu pertanyaan lanjutan dan batasan penggunaan.",
             }
+        if intent == "bulk_order_delivery":
+            return {
+                "priority": "high" if any(word in text for word in ["saat itu juga", "sekarang", "hari ini"]) else "medium",
+                "escalate": True,
+                "escalation_team": "sales_logistics",
+                "sla_recommendation": "Staff follow-up within 30 minutes during store operating hours",
+                "business_risk": "Potensi order bernilai besar, tetapi perlu validasi stok, armada, ongkir, dan kontak pelanggan sebelum diproses.",
+                "reasoning": "Pesanan bahan bangunan jumlah besar harus diteruskan ke staff toko/logistik untuk konfirmasi operasional.",
+            }
         return {
             "priority": "high" if high_risk else "medium",
             "escalate": high_risk,
@@ -186,6 +215,19 @@ class MockChatModel:
                 "lalu pilih cat anti jamur yang sesuai area indoor/outdoor. "
                 "Boleh info dindingnya di dalam/luar rumah dan lembabnya berupa jamur, noda, atau rembes?"
             )
+        elif intent.get("intent") == "bulk_order_delivery":
+            if missing:
+                response = (
+                    f"Terima kasih {ticket.get('customer_name', 'Kak')}, detail pesanan dan alamat sudah saya catat. "
+                    "Agar staff toko bisa menghubungi Anda untuk konfirmasi stok, ongkir, armada, estimasi tiba, dan instruksi transfer BNI, "
+                    "mohon berikan nomor HP atau WhatsApp aktif. Estimasi pengiriman belum bisa dipastikan sebelum staff mengecek stok dan jadwal armada."
+                )
+            else:
+                response = (
+                    f"Terima kasih {ticket.get('customer_name', 'Kak')}, data pesanan dan kontak sudah lengkap. "
+                    "Saya teruskan ke staff toko/logistik untuk validasi stok, ongkir, armada, dan estimasi tiba. "
+                    "Staff akan menghubungi Anda melalui nomor HP/WhatsApp yang diberikan sebelum pembayaran diproses."
+                )
         elif intent.get("intent") == "damaged_item" and not missing:
             response = (
                 f"Terima kasih {ticket.get('customer_name', 'Kak')}, informasi dan bukti yang dibutuhkan sudah kami terima. "
@@ -235,6 +277,17 @@ class MockChatModel:
             if any(word in text for word in ["pasang", "instalasi", "dipasang"]) and not any(word in text for word in ["senin", "selasa", "rabu", "kamis", "jumat", "sabtu", "minggu", "jadwal"]):
                 missing.append("jadwal instalasi")
             return missing
+        if intent == "bulk_order_delivery":
+            missing = []
+            if not self._has_contact(text):
+                missing.append("nomor HP/WhatsApp aktif")
+            if not any(word in text for word in ["jl", "jalan", "alamat", "bantul", "sleman", "yogyakarta"]):
+                missing.append("alamat pengiriman lengkap")
+            if not any(word in text for word in ["semen", "batu", "bata", "besi", "pasir", "cat", "keramik"]):
+                missing.append("daftar item dan jumlah")
+            if not any(word in text for word in ["transfer", "cash", "tunai", "bni", "bca", "mandiri", "bri"]):
+                missing.append("metode pembayaran")
+            return missing
         return ["nomor pesanan"] if "qh-" not in text else []
 
     def _customer_text(self, text: str) -> str:
@@ -248,3 +301,26 @@ class MockChatModel:
             else:
                 lines.append(lowered)
         return " ".join(lines)
+
+    def _is_bulk_order(self, text: str) -> bool:
+        if "pesanan qh-" in text:
+            return False
+        order_words = ["memesan", "mau pesan", "ingin pesan", "saya pesan", "order", "beli", "pembayaran", "transfer"]
+        material_words = ["bahan bangunan", "semen", "batu bata", "besi", "pasir", "keramik", "dikirim"]
+        return any(word in text for word in order_words) and any(word in text for word in material_words)
+
+    def _has_contact(self, text: str) -> bool:
+        if re.search(r"\b(?:\+62|62|0)8\d{7,13}\b", text):
+            return True
+        contact_phrases = [
+            "nomor hp",
+            "no hp",
+            "nomor wa",
+            "no wa",
+            "whatsapp saya",
+            "wa saya",
+            "telepon saya",
+            "telp saya",
+            "hubungi saya",
+        ]
+        return any(phrase in text for phrase in contact_phrases)

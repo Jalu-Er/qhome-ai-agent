@@ -53,6 +53,38 @@ class MockWorkflowTest(unittest.TestCase):
         self.assertNotIn("GUIDE-LED-LIGHTING", matched_ids)
         self.assertFalse(output["final"]["escalate"])
 
+    def test_bulk_order_requires_customer_contact_for_staff_followup(self) -> None:
+        knowledge_base = read_json(ROOT / "data/knowledge_base.json")
+        ticket = {
+            "id": "bulk-order",
+            "customer_name": "nana",
+            "channel": "Web Chat",
+            "subject": "Order bahan bangunan",
+            "message": (
+                "Customer: apakah saya bisa memesan langsung ke toko dan memesan beberapa bahan bangunan "
+                "dan dikirim langsung ke rumah saya saat itu juga?\n"
+                "Customer: alamat saya ada di jl bantul, bantul, bantul, yogyakarta, jenis bahan bangunan nya "
+                "adalah semen 10 pack, batu bata sebanyak 10000 buah. dan besi sebanyak 400 buah.\n"
+                "Customer: metodenya pembayaran melewati transfer dengan bank bni, apakah bisa? dan kapan estimasi datangnya?"
+            ),
+        }
+
+        output = run_workflow(
+            model=MockChatModel(),
+            ticket=ticket,
+            knowledge_base=knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="bulk-order-test-run",
+        )
+
+        missing = output["agent_outputs"]["intent_classifier"]["missing_information"]
+        self.assertEqual(output["final"]["intent"], "bulk_order_delivery")
+        self.assertTrue(output["final"]["escalate"])
+        self.assertIn("POL-BULK-ORDER-DELIVERY", output["agent_outputs"]["knowledge_retrieval"]["matched_policy_ids"])
+        self.assertIn("nomor HP/WhatsApp aktif", missing)
+        self.assertIn("nomor HP", output["final"]["customer_reply"])
+        self.assertIn("Estimasi pengiriman belum bisa dipastikan", output["final"]["customer_reply"])
+
 
 if __name__ == "__main__":
     unittest.main()

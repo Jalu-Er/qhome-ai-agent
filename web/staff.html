@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QHome AI Support Desk — Staff Dashboard</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body class="page-staff">
+    <div class="staff-app">
+      <header class="staff-header">
+        <div class="staff-brand">
+          <svg width="24" height="24" viewBox="0 0 28 28" fill="none">
+            <rect width="28" height="28" rx="6" fill="#1268df"/>
+            <path d="M8 20V12l6-5 6 5v8h-4v-4h-4v4H8z" fill="#fff"/>
+          </svg>
+          <h1>QHome AI Support Desk</h1>
+        </div>
+        <div class="staff-header-right">
+          <div id="ticketCount" class="ticket-count">0 tickets</div>
+          <select id="mode" aria-label="Mode">
+            <option value="mock">Demo</option>
+            <option value="live">Live</option>
+          </select>
+        </div>
+      </header>
+
+      <main class="staff-main">
+        <aside class="ticket-sidebar" id="ticketSidebar">
+          <div class="sidebar-head">
+            <h2>Ticket Queue</h2>
+          </div>
+          <div class="sidebar-filters">
+            <button class="filter-btn active" data-filter="all">Semua</button>
+            <button class="filter-btn" data-filter="new">Baru</button>
+            <button class="filter-btn" data-filter="in_progress">Proses</button>
+            <button class="filter-btn" data-filter="done">Selesai</button>
+          </div>
+          <div id="ticketList" class="ticket-list"></div>
+        </aside>
+
+        <section class="detail-panel" id="detailPanel">
+          <div class="detail-empty" id="detailEmpty">
+            <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+              <rect x="6" y="10" width="36" height="26" rx="4" stroke="currentColor" stroke-width="2"/>
+              <path d="M16 20h16M16 26h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <p>Pilih ticket dari sidebar untuk melihat detail triage.</p>
+            <p class="detail-hint">Ticket akan muncul otomatis saat customer mengirim pesan di <a href="/" target="_blank">halaman customer</a>.</p>
+          </div>
+
+          <div id="detailContent" class="detail-content" hidden>
+            <!-- Customer Info Bar -->
+            <div class="detail-top">
+              <div>
+                <h2 id="detailName">-</h2>
+                <p id="detailMeta" class="detail-meta">-</p>
+              </div>
+              <div id="detailAiStatus" class="status-badge idle">-</div>
+            </div>
+
+            <!-- Staff Workflow -->
+            <div class="workflow-bar">
+              <div class="workflow-status">
+                <span class="card-label">Status Penanganan</span>
+                <div class="workflow-btns">
+                  <button class="wf-btn" data-status="new">Baru</button>
+                  <button class="wf-btn" data-status="in_progress">Proses</button>
+                  <button class="wf-btn" data-status="done">Selesai</button>
+                </div>
+              </div>
+              <div class="workflow-notes">
+                <span class="card-label">Catatan Staff</span>
+                <div class="notes-row">
+                  <textarea id="staffNotes" placeholder="Tulis catatan internal..." rows="2"></textarea>
+                  <button id="saveNotesBtn" class="btn-ghost btn-sm">Simpan</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Triage Cards (AI) -->
+            <div class="staff-section">
+              <h3>Triage AI Agent</h3>
+              <div class="triage-cards">
+                <div class="triage-card"><span class="card-label">Intent</span><strong id="dIntent" class="card-value">-</strong></div>
+                <div class="triage-card"><span class="card-label">Category</span><strong id="dCategory" class="card-value">-</strong></div>
+                <div class="triage-card"><span class="card-label">Priority</span><strong id="dPriority" class="card-value">-</strong></div>
+                <div class="triage-card"><span class="card-label">Escalate</span><strong id="dEscalate" class="card-value">-</strong></div>
+                <div class="triage-card"><span class="card-label">Team</span><strong id="dTeam" class="card-value">-</strong></div>
+                <div class="triage-card"><span class="card-label">AI Status</span><strong id="dTicketStatus" class="card-value">-</strong></div>
+              </div>
+            </div>
+
+            <!-- Customer Reply -->
+            <div class="staff-section">
+              <h3>Balasan AI ke Customer</h3>
+              <div id="dCustomerReply" class="reply-box">-</div>
+            </div>
+
+            <!-- Missing Info -->
+            <div class="staff-section">
+              <h3>Missing Information</h3>
+              <ul id="dMissing" class="pill-list"></ul>
+            </div>
+
+            <!-- Next Steps -->
+            <div class="staff-section">
+              <h3>Internal Next Steps</h3>
+              <ol id="dSteps" class="step-list"></ol>
+            </div>
+
+            <!-- SLA & Risk -->
+            <div class="staff-section">
+              <h3>SLA &amp; Business Risk</h3>
+              <div class="sla-risk-grid">
+                <div class="sla-box"><span class="card-label">SLA</span><p id="dSla">-</p></div>
+                <div class="sla-box"><span class="card-label">Risk</span><p id="dRisk">-</p></div>
+              </div>
+            </div>
+
+            <!-- Handoff -->
+            <div class="staff-section">
+              <div class="section-head">
+                <h3>Staff Handoff</h3>
+                <button id="copyBtn" class="btn-ghost btn-sm">Copy</button>
+              </div>
+              <pre id="dHandoff" class="handoff-box">-</pre>
+            </div>
+
+            <!-- Conversation -->
+            <details class="staff-section collapsible">
+              <summary>Conversation History <span id="dMsgCount" class="trace-count">0</span></summary>
+              <div id="dConversation" class="transcript-box">-</div>
+            </details>
+
+            <!-- Agent Trace -->
+            <details class="staff-section collapsible">
+              <summary>Agent Trace <span id="dTraceCount" class="trace-count">0 agents</span></summary>
+              <div id="dTrace" class="trace-list"></div>
+            </details>
+
+            <!-- Run ID -->
+            <div class="run-id-bar">
+              <span>Run ID</span>
+              <code id="dRunId">-</code>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="/static/staff.js"></script>
+  </body>
+</html>

@@ -16,15 +16,11 @@ Setiap agent memiliki tanggung jawab berbeda:
 
 Workflow dijalankan oleh orchestrator sequential dengan shared state. Semua hasil agent dicatat ke `interactions.jsonl`, lalu output akhir disimpan sebagai JSON dan report Markdown.
 
-```text
-Customer Ticket
-  -> Intent Classifier
-  -> Knowledge Retrieval
-  -> Solution Planner
-  -> Priority & Escalation
-  -> QA & Final Response
-  -> final_output.json + report.md + interactions.jsonl
-```
+## Arsitektur
+
+![Architecture Diagram](docs/architecture.png)
+
+Setiap agent menerima shared state berisi ticket awal dan output agent sebelumnya, sehingga keputusan dibangun secara bertahap dari klasifikasi sampai jawaban final. Detail arsitektur tersedia di [`docs/architecture.md`](docs/architecture.md).
 
 ## Cara Menjalankan
 
@@ -59,16 +55,22 @@ python3 run.py web
 
 Buka:
 
-```text
-http://127.0.0.1:8000
-```
+- **Customer Chat**: `http://127.0.0.1:8000/` — tampilan chat bersih untuk pelanggan.
+- **Staff Dashboard**: `http://127.0.0.1:8000/staff` — dashboard internal dengan ticket queue dan triage panel.
 
-Web demo memisahkan dua sisi:
+Kedua halaman terpisah secara desain, seperti sistem CS sesungguhnya. Customer hanya melihat chat, staff melihat antrian ticket dan keputusan 5 agent.
 
-- Customer Chat: percakapan natural antara pelanggan dan QHome AI.
-- Staff Triage Panel: intent, priority, escalation, status ticket, missing information, next steps, dan trace 5 agent.
+Ticket otomatis masuk ke staff dashboard saat customer mengirim pesan. Staff bisa filter ticket berdasarkan status: Semua, Perlu Staff, Menunggu Info, atau Resolved.
 
-Jika pelanggan membalas lagi, pesan baru dianalisis bersama history chat sehingga status internal bisa berubah dari `waiting_customer_info` menjadi `ready_for_staff_review`.
+Jika pelanggan membalas lagi, pesan baru dianalisis bersama history chat sehingga status internal bisa berubah dari `waiting_info` menjadi `needs_staff` atau `resolved`.
+
+Contoh sales/order flow:
+
+- Customer menanyakan order bahan bangunan dan pengiriman.
+- Agent mencatat alamat, daftar item, jumlah, dan metode bayar.
+- Jika nomor HP/WhatsApp belum ada, agent meminta kontak aktif.
+- Staff dashboard menandai ticket sebagai `Menunggu Info` sampai kontak lengkap.
+- Estimasi tiba, ongkir, armada, dan stok tidak dijanjikan AI; semuanya masuk follow-up staff toko/logistik.
 
 ## Data Source
 
@@ -118,19 +120,20 @@ data/
   sample_tickets.json       Sample customer tickets
 docs/
   architecture.md           Detail arsitektur
-  competition-context.md    Konteks lomba
-  project-plan.md           Rencana kerja sampai submission
-  submission-description.md Draft deskripsi submission
+  architecture.png          Diagram arsitektur (image)
 src/qhome_ai_agent/
   agents.py                 Definisi 5 agent
   orchestrator.py           Workflow multi-agent
   llm.py                    Client SumoPod OpenAI-compatible
   mock_llm.py               Mode mock reproducible
+  web.py                    Web server + session store
   report.py                 Markdown report generator
 web/
-  index.html                Web chatbox demo
-  styles.css
-  app.js
+  customer.html             Halaman chat pelanggan (/)
+  customer.js               Logic chat pelanggan
+  staff.html                Dashboard staff (/staff)
+  staff.js                  Logic dashboard + ticket queue
+  styles.css                Shared styles
 ```
 
 ## Deliverable Lomba

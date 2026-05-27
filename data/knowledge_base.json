@@ -40,6 +40,12 @@
       "title": "Konfirmasi pembayaran",
       "summary": "Masalah pembayaran perlu divalidasi dengan nomor pesanan, metode pembayaran, waktu transaksi, dan bukti pembayaran.",
       "keywords": ["bayar", "pembayaran", "transfer", "invoice"]
+    },
+    {
+      "id": "POL-BULK-ORDER-DELIVERY",
+      "title": "Order bahan bangunan dan pengiriman",
+      "summary": "Pesanan bahan bangunan dalam jumlah besar membutuhkan nama pelanggan, nomor HP/WhatsApp aktif, alamat lengkap, daftar item dan jumlah, metode pembayaran, serta konfirmasi stok, ongkir, armada, dan estimasi tiba dari staff toko/logistik. AI tidak boleh menjanjikan pengiriman saat itu juga sebelum staff memvalidasi stok dan kapasitas pengiriman.",
+      "keywords": ["pesan", "memesan", "bahan bangunan", "semen", "batu bata", "besi", "pengiriman", "dikirim", "transfer", "bank", "ongkir", "estimasi"]
     }
   ],
   "product_guides": [
