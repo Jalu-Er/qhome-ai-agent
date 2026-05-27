@@ -175,6 +175,12 @@ h2 {
   border-radius: 8px;
 }
 
+.ghost.small {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .chat-thread {
   display: flex;
   flex-direction: column;
@@ -371,6 +377,35 @@ h2 {
 
 .step-list {
   display: grid;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.handoff-box,
+.transcript-box {
+  margin: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--text);
+  padding: 12px;
+  font-size: 13px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow: auto;
+}
+
+.handoff-box {
+  max-height: 260px;
+}
+
+.transcript-box {
+  max-height: 220px;
 }
 
 .trace {

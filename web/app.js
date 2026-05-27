@@ -13,6 +13,9 @@ const team = document.querySelector("#team");
 const runId = document.querySelector("#runId");
 const missingInfo = document.querySelector("#missingInfo");
 const nextSteps = document.querySelector("#nextSteps");
+const handoffText = document.querySelector("#handoffText");
+const transcript = document.querySelector("#transcript");
+const copyHandoffButton = document.querySelector("#copyHandoffButton");
 const trace = document.querySelector("#trace");
 
 let history = [];
@@ -29,6 +32,20 @@ resetButton.addEventListener("click", () => {
   renderChat();
   renderEmptyPanel();
   setStatus("idle", "Staff triage panel siap.");
+});
+
+copyHandoffButton.addEventListener("click", async () => {
+  const text = handoffText.textContent.trim();
+  if (!text || text === "Belum ada handoff.") return;
+  try {
+    await navigator.clipboard.writeText(text);
+    copyHandoffButton.textContent = "Copied";
+    setTimeout(() => {
+      copyHandoffButton.textContent = "Copy";
+    }, 1200);
+  } catch {
+    copyHandoffButton.textContent = "Select";
+  }
 });
 
 runButton.addEventListener("click", sendMessage);
@@ -119,6 +136,8 @@ function renderPanel(data) {
 
   renderList(missingInfo, classifier.missing_information || []);
   renderList(nextSteps, final.internal_next_steps || []);
+  handoffText.textContent = buildHandoff(data, classifier);
+  transcript.textContent = buildTranscript();
 
   trace.innerHTML = "";
   (data.trace || []).forEach((step) => {
@@ -142,6 +161,8 @@ function renderEmptyPanel() {
   runId.textContent = "-";
   missingInfo.innerHTML = "";
   nextSteps.innerHTML = "";
+  handoffText.textContent = "Belum ada handoff.";
+  transcript.textContent = "Belum ada percakapan.";
   trace.innerHTML = "";
 }
 
@@ -170,6 +191,36 @@ function inferStatus(final, classifier) {
     return "ready_for_staff_review";
   }
   return "resolved_or_advisory";
+}
+
+function buildTranscript() {
+  if (!history.length) return "Belum ada percakapan.";
+  return history
+    .map((item) => `${item.role === "customer" ? customerName.value || "Customer" : "QHome AI"}: ${item.content}`)
+    .join("\n\n");
+}
+
+function buildHandoff(data, classifier) {
+  const final = data.final || {};
+  const missing = classifier.missing_information || [];
+  const steps = final.internal_next_steps || [];
+  return [
+    `Run ID: ${data.run_id || "-"}`,
+    `Status: ${inferStatus(final, classifier)}`,
+    `Intent: ${final.intent || "-"}`,
+    `Priority: ${final.priority || "-"}`,
+    `Escalate: ${String(final.escalate ?? "-")}`,
+    `Team: ${final.escalation_team || "-"}`,
+    "",
+    "Missing Info:",
+    ...(missing.length ? missing.map((item) => `- ${item}`) : ["- Tidak ada"]),
+    "",
+    "Internal Next Steps:",
+    ...(steps.length ? steps.map((item) => `- ${item}`) : ["- Tidak ada"]),
+    "",
+    "Conversation Transcript:",
+    buildTranscript(),
+  ].join("\n");
 }
 
 function setStatus(kind, text) {

@@ -117,9 +117,9 @@ class MockChatModel:
             missing = outputs.get("intent_classifier", {}).get("missing_information", [])
             if missing:
                 actions = [
-                    "Minta nomor pesanan, foto produk rusak, foto kemasan, dan video unboxing jika ada.",
+                    "Catat kebutuhan bukti kerusakan untuk follow-up staff.",
                     "Validasi apakah laporan masih dalam batas waktu klaim kerusakan.",
-                    "Tawarkan penggantian barang atau proses klaim sesuai kebijakan.",
+                    "Eskalasi ke tim after sales jika bukti dan data instalasi sudah lengkap.",
                 ]
             else:
                 actions = [
@@ -195,8 +195,9 @@ class MockChatModel:
         else:
             response = (
                 f"Halo {ticket.get('customer_name', 'Kak')}, mohon maaf atas kendalanya. "
-                "Agar tim kami bisa membantu dengan cepat, mohon kirimkan nomor pesanan dan bukti pendukung. "
-                f"Langkah yang akan kami lakukan: {'; '.join(actions[:3])}"
+                "Saya sudah mencatat laporan ini untuk tim support. "
+                "Agar klaim bisa diproses, staff akan melakukan follow-up untuk memastikan bukti kerusakan dan detail instalasi yang masih dibutuhkan. "
+                f"Langkah internal kami: {'; '.join(actions[:3])}"
             )
         return {
             "ticket_summary": intent.get("summary", "Ticket pelanggan membutuhkan tindak lanjut."),
@@ -228,7 +229,7 @@ class MockChatModel:
             if "qh-" not in text:
                 missing.append("nomor pesanan")
             if "foto" not in text and "gambar" not in text:
-                missing.append("foto produk rusak dan kemasan")
+                missing.append("status bukti kerusakan")
             if any(word in text for word in ["pasang", "instalasi", "dipasang"]) and "alamat" not in text:
                 missing.append("alamat instalasi")
             if any(word in text for word in ["pasang", "instalasi", "dipasang"]) and not any(word in text for word in ["senin", "selasa", "rabu", "kamis", "jumat", "sabtu", "minggu", "jadwal"]):

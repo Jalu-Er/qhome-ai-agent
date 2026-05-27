@@ -56,7 +56,8 @@ AGENTS: list[Agent] = [
             "For product_advice, recommend product types, ask needed follow-up questions, and include safety/usage caveats. "
             "Use intent and knowledge context. Return JSON with keys: recommended_actions, "
             "customer_response_outline, policy_basis, reasoning. recommended_actions must be an array of short "
-            "Bahasa Indonesia strings, not objects. Use Bahasa Indonesia for all human-readable values."
+            "Bahasa Indonesia strings, not objects. Do not imply this demo can receive file uploads; if evidence is needed, "
+            "route it as an internal staff follow-up or ask whether the evidence is available. Use Bahasa Indonesia for all human-readable values."
         ),
     ),
     Agent(
@@ -78,7 +79,8 @@ AGENTS: list[Agent] = [
             "intent, category, priority, escalate, escalation_team, customer_reply, internal_next_steps, "
             "quality_checks, reasoning. customer_reply and internal_next_steps must use Bahasa Indonesia and match "
             "QHome Mart customer support tone. internal_next_steps must be an array of strings, not a single string. "
-            "priority must be exactly one of: low, medium, high. escalate must be boolean."
+            "priority must be exactly one of: low, medium, high. escalate must be boolean. Do not tell customers to upload or send "
+            "photos/videos through this chat; say staff will follow up for evidence when needed."
         ),
     ),
 ]

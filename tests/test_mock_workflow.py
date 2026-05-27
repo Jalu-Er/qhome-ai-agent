@@ -29,6 +29,8 @@ class MockWorkflowTest(unittest.TestCase):
         self.assertTrue(output["final"]["escalate"])
         self.assertEqual(len(output["trace"]), 5)
         self.assertIn("POL-DELIVERY-DAMAGE", output["agent_outputs"]["knowledge_retrieval"]["matched_policy_ids"])
+        self.assertNotIn("kirimkan foto", output["final"]["customer_reply"].lower())
+        self.assertNotIn("upload", output["final"]["customer_reply"].lower())
         self.assertTrue((ROOT / "runs-test/test-run/final_output.json").exists())
         self.assertTrue((ROOT / "runs-test/test-run/interactions.jsonl").exists())
 
