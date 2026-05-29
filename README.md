@@ -1,128 +1,206 @@
-<div align="center">
-  <h1>🏠 QHome AI Agent</h1>
-  <p><strong>Sistem Multi-Agent Orchestrator untuk Triage Customer Support & Quotation Material Bangunan</strong></p>
-  <p><em>Submission untuk <b>AI Agent Competition 2026</b> — Mewakili QHome Mart Yogyakarta</em></p>
+# QHome AI Agent 🏠
 
-  [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-  [![SQLite](https://img.shields.io/badge/Storage-SQLite-lightgrey.svg)](https://sqlite.org)
-  [![Tests](https://img.shields.io/badge/Tests-20%2F20%20Passed-brightgreen.svg)](#-pengujian--evaluasi)
-  [![Eval](https://img.shields.io/badge/Eval-7%2F7%20PASS%20%7C%2028.29%2F30-brightgreen.svg)](#-pengujian--evaluasi)
-  [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-</div>
+> **AI Agent Competition 2026** — Multi-Agent Orchestrator untuk Customer Support & Quotation Otomatis
 
-<br>
+**QHome AI Agent** adalah sistem **Multi-Agent AI** yang dirancang untuk mengotomatisasi triage customer support, konsultasi produk, kalkulasi material bangunan, dan pembuatan draf penawaran (quotation) secara end-to-end — untuk bisnis retail material bangunan **QHome Mart Yogyakarta**.
 
-**QHome AI Agent** adalah solusi asisten cerdas berbasis *Multi-Agent AI* yang berjalan secara otonom. Berbeda dari *chatbot* biasa, sistem ini bertindak seperti kumpulan spesialis: ada agen yang khusus mengklasifikasikan tiket, ada yang mencari produk dari database, ada yang berdebat (*Critic Debate Loop*) tentang harga, dan ada yang menghitung kuantitas bahan bangunan.
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
+[![SQLite](https://img.shields.io/badge/Storage-SQLite-lightgrey.svg)](https://sqlite.org)
+[![Tests](https://img.shields.io/badge/Unit_Tests-20%2F20_OK-brightgreen.svg)](#-pengujian--evaluasi)
+[![Eval](https://img.shields.io/badge/Eval_Suite-7%2F7_PASS_%7C_28.29%2F30-brightgreen.svg)](#-pengujian--evaluasi)
 
 ---
 
-## 📸 Web UI & Staff Dashboard
+## 📐 Arsitektur Sistem
 
-Kami telah merancang antarmuka visual (Web UI) yang fungsional bagi dua sisi:
-- **Customer UI**: Tampilan bersih untuk chat interaktif pelanggan.
-- **Staff Dashboard**: Panel admin (*Live Trace*) yang menampilkan eksekusi *agent* secara *real-time* per tiket.
+Setiap pesan pelanggan melewati **Hybrid Triage Router Agent** (LLM-powered) sebelum diarahkan ke salah satu dari dua pipeline agen secara dinamis.
 
-![QHome Web Demo](docs/web-demo.png)
+![System Architecture](docs/system_architecture.png)
 
----
-
-## 📐 Arsitektur Sistem Utama
-
-Sistem ini didesain menggunakan **Hybrid Orchestration** dengan **Triage Router Agent** bertindak sebagai gerbang terdepan.
-
-![QHome Architecture](docs/architecture.png)
-
-### 🚀 Business Rules Terintegrasi
-1. **Complaint-First Priority**: Jika pelanggan mengeluh dan ingin membeli di pesan yang sama, sistem **WAJIB** menyelesaikan keluhan (mengirim ke *Support Pipeline*) dan menunda nada *sales* agresif demi perlindungan reputasi (*Tone Protection*).
-2. **Dynamic Pipeline Switching**: Jika pelanggan sudah selesai dengan urusan *support* dan **pesan terbarunya** murni tentang pemesanan bahan, sistem akan menyeberang (*switch*) otomatis ke *Renovation Pipeline*.
-3. **Anti-Looping**: Klasifikasi AI berfokus pada **pesan terbaru** pelanggan, sehingga AI tidak akan terjebak merangkum keluhan lama yang sudah diselesaikan.
+**Komponen utama:**
+- **Triage Router Agent** — Gerbang cerdas berbasis LLM yang menganalisis intent pelanggan dan memutuskan pipeline terbaik.
+- **5-Agent Support Pipeline** — Untuk komplain, retur, pertanyaan kebijakan, dan eskalasi risiko.
+- **7-Agent Renovation & Quotation Pipeline** — Untuk estimasi biaya, kalkulasi material, dan pembuatan draf penawaran otomatis.
+- **SQLite Database** — Penyimpanan persisten untuk tiket, produk, inventori, quotation, dan riwayat agen.
+- **Staff Dashboard** — Antarmuka real-time untuk memantau progres agen dan menindaklanjuti tiket.
 
 ---
 
-## 🗂️ Detail 2 Jalur Pipeline
+## 🔄 Dynamic Pipeline Switching
 
-Sistem akan menyeleksi 1 dari 2 pipeline ini berdasarkan keputusan Triage Router:
+Fitur unggulan sistem ini: AI secara otomatis berpindah pipeline berdasarkan **pesan terbaru** pelanggan, tanpa perlu intervensi staf.
 
-### 🔧 5-Agent Support Pipeline
-Diaktifkan untuk komplain, retur, pelacakan pengiriman, dan pertanyaan umum.
-1. `intent_classifier`: Klasifikasi berbasis *latest message*.
-2. `knowledge_retrieval`: Menarik kebijakan garansi / FAQ dari Knowledge Base.
-3. `solution_planner`: Merancang resolusi perbaikan masalah.
-4. `priority_escalation`: Audit eskalasi & SLA bisnis.
-5. `qa_final_response`: Merumuskan respons empatik akhir.
+![Dynamic Pipeline Switching](docs/pipeline_switching.png)
 
-### 🏗️ 7-Agent Renovation & Quotation Pipeline
-Diaktifkan untuk konsultasi renovasi (misal: "kamar mandi 2x2") dan order baru.
-1. `requirement_intake`: Ekstrak parameter m², budget, & tipe ruangan.
-2. `product_retrieval`: SQL Query material ke database SQLite `products`.
-3. `inventory_snapshot`: Validasi ketersediaan `inventory_snapshots`.
-4. `quantity_estimator`: **Kalkulator Deterministik** (rumus liter cat & luas ubin + waste 10%).
-5. `quote_builder`: Generate tiket `QTE-XXXX` & harga subtotal.
-6. `risk_verifier`: *Critic loop* — Mencegah janji palsu tentang ketersediaan stok & garansi harga.
-7. `staff_handoff_response`: Susun draf *Whatsapp* internal & balasan pelanggan.
+**Aturan Bisnis:**
+
+| Skenario | Perilaku Sistem |
+|----------|----------------|
+| Komplain + pesanan di **1 pesan yang sama** | Prioritaskan komplain → Pipeline `support`. Pesanan dicatat sebagai `secondary_intents`. |
+| Komplain di pesan lama, **pesan baru = pesanan** | Otomatis **switch** ke pipeline `renovation_quote` (7-agent). |
+| Follow-up (kasih nomor WA, dll.) | Tetap di pipeline sebelumnya, tidak mengulang jawaban lama (anti-looping). |
 
 ---
 
-## 💾 Persistensi Data (Zero Heavy Dependencies)
+## 💬 Use Case
 
-Sistem didesain *plug-and-play* untuk dewan juri. Kami sengaja menggunakan **SQLite** agar tidak perlu ada setup Docker/MariaDB eksternal. Namun, arsitektur ini sudah siap di-*scale* melalui **External Database Adapter**.
-
-**Alur Data:**
-`JSON Seed Files` ➜ `python run.py init-db` ➜ `data/qhome_agent.db`
-
-**Struktur Tabel:**
-- 🛒 `products` & `inventory_snapshots`: Katalog dan stok gudang.
-- 💬 `tickets` & `messages`: Tiket operasional dan *chat history*.
-- 📝 `quotes` & `quote_items`: Draf penawaran sistem.
-- 🤖 `agent_runs` & `agent_steps`: Metadata dan *trace* log per-agen untuk observabilitas staf.
-- 📜 `policies`: Guardrail internal perusahaan.
-
-*(Lihat `docs/external_db_adapter.md` untuk konfigurasi koneksi ke DB MySQL/PostgreSQL).*
+![Use Case Diagram](docs/use_case_diagram.png)
 
 ---
 
-## 🛠️ Cara Menjalankan (Step-by-Step)
+## 🗂️ Pipeline Detail
+
+### Pipeline 1: Support (5-Agent)
+
+Diaktifkan untuk komplain, retur, pertanyaan kebijakan, dan eskalasi risiko.
+
+| # | Agen | Fungsi |
+|---|------|--------|
+| 1 | **Intent Classifier** | Klasifikasi intent berdasarkan pesan terbaru pelanggan |
+| 2 | **Knowledge Retrieval** | Cari FAQ, kebijakan retur, dan panduan produk dari knowledge base |
+| 3 | **Solution Planner** | Buat rencana resolusi + outline respons pelanggan |
+| 4 | **Priority & Escalation** | Tentukan level prioritas, SLA, dan tim eskalasi |
+| 5 | **QA & Final Response** | Cek konsistensi antar-agen, hasilkan respons final kontekstual |
+
+### Pipeline 2: Renovation & Quotation (7-Agent)
+
+Diaktifkan untuk permintaan kalkulasi material, estimasi biaya, dan pesanan baru.
+
+| # | Agen | Fungsi |
+|---|------|--------|
+| 1 | **Requirement Intake** | Ekstrak tipe proyek, luas area (m²), budget, item yang dibutuhkan |
+| 2 | **Product Retrieval** | Query SKU produk relevan dari database SQLite |
+| 3 | **Inventory Snapshot** | Cek stok cabang + peringatan stok rendah |
+| 4 | **Quantity Estimator** | Kalkulasi deterministik: tile formula, paint formula, waste +10% |
+| 5 | **Quote Builder** | Generate ID unik `QTE-XXXX`, hitung subtotal, simpan ke DB |
+| 6 | **Risk & Policy Verifier** | Validasi kelengkapan data, cek inkonsistensi, loop revisi |
+| 7 | **Staff Handoff Response** | Susun respons + instruksi handoff lengkap untuk staf toko |
+
+---
+
+## 🛠️ Cara Menjalankan
+
+> **Zero heavy dependencies.** Hanya Python 3.11+ dan SQLite bawaan.
 
 ### 1. Inisialisasi Database
 ```bash
 python3 run.py init-db
 ```
-Ini akan membuat database SQLite dari nol. Sangat aman dieksekusi berulang kali (Idempotent).
 
-### 2. Jalankan Live Web Server
+### 2. Jalankan Web Demo
 ```bash
 python3 run.py web
 ```
-Akses di browser Anda:
-- **Pelanggan**: `http://127.0.0.1:8000/`
-- **Dashboard Staf**: `http://127.0.0.1:8000/staff`
 
-> *Sangat disarankan menggunakan API Key sungguhan untuk demo terbaik.*
-> Buat file `.env`:
-> ```ini
-> AI_API_KEY=your_api_key_here
-> AI_BASE_URL=https://ai.sumopod.com/v1
-> AI_MODEL=gpt-4o-mini
-> ```
+| URL | Halaman |
+|-----|---------|
+| `http://127.0.0.1:8000/` | Customer Chat UI |
+| `http://127.0.0.1:8000/staff` | Staff Dashboard (Live Agent Trace) |
+
+### 3. Jalankan via CLI
+```bash
+python3 run.py list-tickets
+python3 run.py run --mode mock --ticket-id eval-bathroom-2x2
+```
+
+Output tersimpan di `runs/<run-id>/` (`interactions.jsonl`, `final_output.json`, `report.md`).
 
 ---
 
-## 🧪 Pengujian Ketat (Eval & Unit Tests)
+## 🔑 Live Mode (Real LLM API)
 
-Sistem ini bukanlah sekadar *prompt engineering*, melainkan aplikasi *production-grade* yang teruji mutunya.
+Buat file `.env` di root project:
+```ini
+AI_API_KEY=your_api_key_here
+AI_BASE_URL=https://ai.sumopod.com/v1
+AI_MODEL=gpt-4o-mini
+```
 
-**1. Unit Testing (100% Success)**
+```bash
+# Via CLI
+python3 run.py run --mode live --ticket-id eval-bathroom-2x2
+
+# Eval dengan real API
+python3 run.py eval --mode live
+```
+
+---
+
+## 🧪 Pengujian & Evaluasi
+
+### Unit Test Suite — 20 Test
 ```bash
 python3 -m unittest discover -s tests -v
 ```
-Memvalidasi kalkulator deterministik, *pipeline switching*, SQLite persistence, dan penolakan injeksi prompt (adversarial tests). **(20/20 PASSED)**.
+Mencakup: routing triage, multi-intent, dynamic pipeline switching, kalkulator deterministik, persistensi SQLite, normalisasi output, edge case, dan adversarial test. **Result: 20/20 OK ✅**
 
-**2. Automated Evaluation Suite**
+### Eval Suite — 7 Skenario
 ```bash
 python3 run.py eval
 ```
-Uji coba otonom terhadap 7 skenario kompleks (kamar mandi 2x2, cat dinding lembab, komplain barang pecah campur pesanan, bahasa slang, dll). 
-**Skor Rata-Rata: 28.29 / 30.0 (7/7 Skenario LULUS)**.
+
+| Skenario | Fokus | Score |
+|----------|-------|-------|
+| `eval-bathroom-2x2` | Renovasi kamar mandi 2×2m | 30/30 |
+| `eval-damp-wall` | Dinding lembab, cat anti-jamur | 27/30 |
+| `eval-living-room-tile` | Pilih keramik ruang tamu | 30/30 |
+| `eval-damaged-item` | Komplain barang rusak | 27/30 |
+| `eval-led-home` | Pembelian lampu LED | 30/30 |
+| `eval-empty` | Pesan kosong (edge case) | 27/30 |
+| `eval-mixed-lang` | Campuran bahasa (adversarial) | 27/30 |
+| **Rata-rata** | | **28.29/30 — 7/7 PASSED** |
 
 ---
-*Dikembangkan oleh Jalu Er — AI Agent Competition 2026*
+
+## 📁 Struktur Project
+
+```text
+qhome-ai-agent/
+├── run.py                          Entry point (CLI + web server)
+├── data/
+│   ├── qhome_agent.db              SQLite database operasional
+│   ├── evaluation_cases.json       7 skenario evaluasi otomatis
+│   ├── knowledge_base.json         FAQ & panduan produk
+│   ├── sample_tickets.json         Tiket demo pelanggan
+│   └── seed/                       Data awal (products, inventory, policies)
+├── docs/
+│   ├── system_architecture.png     Diagram arsitektur sistem
+│   ├── pipeline_switching.png      Diagram dynamic pipeline switching
+│   ├── use_case_diagram.png        Diagram use case
+│   ├── architecture.md             Arsitektur teknis (teks)
+│   ├── judging.md                  Kesesuaian kriteria penilaian juri
+│   ├── database.md                 Skema database SQLite
+│   └── demo_scenarios.md           Skenario demo video
+├── src/qhome_ai_agent/
+│   ├── agents.py                   System prompt semua agen (1+5+7)
+│   ├── orchestrator.py             Workflow & dynamic pipeline switching
+│   ├── models.py                   Data classes (RunState, AgentStep)
+│   ├── storage.py                  Repositori data SQLite
+│   ├── tools.py                    Kalkulator deterministik (tile, paint)
+│   ├── mock_llm.py                 Simulasi agen untuk testing/CI
+│   ├── llm.py                      Client API SumoPod/OpenAI-compatible
+│   └── web.py                      Web server (stdlib only)
+├── web/
+│   ├── customer.html / .js         Customer Chat UI
+│   ├── staff.html / .js            Staff Dashboard (live agent trace)
+│   └── styles.css                  Shared styling
+└── tests/
+    ├── test_mock_workflow.py        13 unit test routing & workflow
+    └── test_renovation_pipeline.py  7 unit test pipeline renovasi & SQLite
+```
+
+---
+
+## 🏆 Keunggulan Teknis
+
+| Kriteria Kompetisi | Implementasi |
+|-------------------|-------------|
+| **Multi-Agent Architecture** | 1 Router + 5 Support + 7 Renovation = 13 agen total |
+| **Agent Reasoning** | Setiap agen menghasilkan `reasoning` dalam Bahasa Indonesia |
+| **Context Awareness** | Latest-message-first routing + anti-looping |
+| **Business Rules** | Complaint-First, Tone Protection, Dynamic Switch |
+| **Persistent State** | SQLite: tickets, quotes, inventory, agent_runs |
+| **Deterministic Tools** | Formula tile (waste+10%), paint (liter/m²) |
+| **Observability** | Live agent trace di Staff Dashboard per langkah |
+| **Reproducibility** | Mock mode + eval suite + 20 unit tests |
+| **Zero Dependencies** | Python stdlib + SQLite saja |

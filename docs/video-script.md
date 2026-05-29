@@ -1,87 +1,77 @@
-# Video Script 3-5 Menit
+# Video Script (3-5 Menit)
 
-## 0:00-0:30 Problem
+## 0:00–0:30 — Problem Statement
 
-Customer support retail sering menerima ticket dengan konteks berbeda: barang rusak saat pengiriman, retur, keterlambatan, pembayaran, atau instalasi. Jika semua ticket dibaca manual, respon bisa lambat dan prioritas kasus berisiko bisa terlambat terdeteksi.
+Customer support toko material bangunan menerima pesan dengan konteks yang beragam: barang rusak, retur, konsultasi produk, sampai permintaan estimasi biaya renovasi. Jika semua ditangani manual, respon lambat, prioritas terlewat, dan pelanggan kecewa.
 
-## 0:30-1:15 Solution
+Lebih buruk lagi: pelanggan sering mengirim **multi-intent** dalam satu percakapan — komplain barang pecah sekaligus minta pesan material baru. Sistem biasa tidak bisa menangani ini dengan baik.
 
-QHome AI Agent membantu triage ticket dan konsultasi produk dengan sistem multi-agent. Fokusnya bukan chat biasa, tetapi pembagian kerja antar agent yang jelas: klasifikasi intent, pencarian knowledge base, perencanaan solusi/rekomendasi, prioritas eskalasi, dan QA jawaban final.
+## 0:30–1:30 — Solution: QHome AI Agent
 
-## 1:15-2:10 Architecture
+QHome AI Agent adalah sistem **multi-agent AI** dengan 13 agen yang bekerja secara kolaboratif.
 
-Tampilkan `docs/architecture.md`. Jelaskan workflow sequential:
+Tampilkan diagram arsitektur (`docs/system_architecture.png`):
+- **Triage Router**: Gerbang cerdas yang mendeteksi intent dan memutuskan pipeline
+- **5-Agent Support Pipeline**: Untuk komplain, retur, eskalasi
+- **7-Agent Renovation Pipeline**: Untuk estimasi material, quotation otomatis
 
-```text
-Ticket -> Intent -> Knowledge -> Solution -> Priority -> Final Response
-```
+Fitur utama:
+- **Complaint-First Priority**: Jika ada komplain + pesanan, komplain selalu diprioritaskan
+- **Dynamic Pipeline Switching**: AI otomatis berpindah pipeline berdasarkan pesan terbaru
 
-Tekankan bahwa setiap agent membaca shared state dari agent sebelumnya dan semua output dicatat di `interactions.jsonl`.
+Tampilkan diagram switching (`docs/pipeline_switching.png`).
 
-## 2:10-3:20 Demo
+## 1:30–3:00 — Live Demo
 
-Jalankan:
-
-```bash
-python3 run.py list-tickets
-python3 run.py run --mode mock --ticket-id damaged-ceramic-delivery
-```
-
-Tampilkan web chatbox:
-
+Jalankan server:
 ```bash
 python3 run.py web
 ```
 
-Tunjukkan dua panel:
+### Demo Skenario 1: Komplain → Dynamic Switch ke Quotation
 
-- Customer Chat untuk pelanggan.
-- Staff Triage Panel untuk intent, priority, escalation, missing information, next steps, dan trace agent.
+Customer Chat:
+1. "Pesanan baru sampai pagi ini, tapi 6 dus keramik pecah dan retak."
+   → Tunjukkan Staff Dashboard: pipeline = `support`, triage routing info
+2. "Nomor saya 08123456789, hubungi saya ya"
+   → AI hanya acknowledge, tidak mengulang jawaban lama (anti-looping)
+3. "Saya juga ingin renovasi kamar mandi 2x2m, berapa estimasinya?"
+   → **DYNAMIC SWITCH!** Pipeline berubah ke `renovation_quote`
+   → Staff Dashboard menampilkan 7 agent trace baru
+   → AI mengeluarkan tabel estimasi biaya material
 
-Demo pertanyaan produk:
+### Demo Skenario 2: Konsultasi Produk
 
-```text
-Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?
-```
+"Dinding kamar lembab dan ada jamur, luas 12m². Saya butuh cat yang cocok."
+→ Tunjukkan: rekomendasi produk, peringatan keselamatan, dan estimasi biaya
 
-Demo follow-up komplain:
+### Tunjukkan Staff Dashboard:
+- Live agent trace per langkah agen
+- Detail triage routing (primary_intent, secondary_intents, priority_rule)
+- Nomor WhatsApp pelanggan (highlight hijau)
+- Draf quotation dengan kode QTE-XXXX
 
-```text
-Pesanan QH-10482 baru sampai pagi ini, tapi 6 dus keramik pecah.
-```
+## 3:00–4:00 — Technical Excellence
 
-Lalu balas sebagai pelanggan:
-
-```text
-Ini foto keramik rusak sudah saya kirim, alamat saya di Sleman dan bisa dipasang Jumat pagi.
-```
-
-Jelaskan bahwa sistem menganalisis history chat, bukan hanya satu pesan.
-
-Tampilkan file hasil:
-
-```bash
-runs/<run-id>/final_output.json
-runs/<run-id>/report.md
-runs/<run-id>/interactions.jsonl
-```
-
-Jika live mode SumoPod sudah stabil, jalankan:
+- **Kalkulasi deterministik**: Bukan tebakan LLM — menggunakan formula matematika Python dengan waste +10%
+- **SQLite persisten**: Semua data tersimpan (tiket, quotation, riwayat agen)
+- **20 unit test + 7 eval suite**: Skor rata-rata 28.29/30
+- **Zero heavy dependencies**: Hanya Python stdlib + SQLite
+- **Mock + Live mode**: Bisa dijalankan tanpa API key (mock) atau dengan SumoPod API (live)
 
 ```bash
-python3 run.py run --mode live --ticket-id damaged-ceramic-delivery
+python3 -m unittest discover -s tests -v   # 20/20 OK
+python3 run.py eval                          # 7/7 PASS, 28.29/30
 ```
 
-## 3:20-4:20 Business Impact
+## 4:00–4:30 — Business Impact
 
-Jelaskan impact:
+- Staff mendapat ringkasan tiket dan prioritas secara instan
+- Kasus berisiko otomatis dieskalasi berdasarkan SLA
+- Estimasi material akurat dan reproducible
+- Log agen membuat proses bisa diaudit
+- Pelanggan dilayani lebih cepat tanpa kehilangan konteks
 
-- Support bisa mendapat ringkasan ticket dan prioritas lebih cepat.
-- Kasus rusak/retur/keterlambatan bisa dieskalasi berdasarkan risiko.
-- Jawaban lebih konsisten karena memakai knowledge base.
-- Pertanyaan produk bisa diarahkan dengan product guide, bukan jawaban bebas tanpa konteks.
-- Log agent membuat proses bisa diaudit dan dievaluasi.
+## 4:30–5:00 — Closing
 
-## 4:20-5:00 Closing
-
-Tutup dengan definisi sukses: sistem multi-agent ini modular, reproducible, dapat berjalan dengan SumoPod AI, dan tetap bisa diuji melalui mock mode tanpa API key.
+QHome AI Agent adalah contoh nyata bagaimana multi-agent AI bisa menghasilkan output bisnis terukur: dari triage otomatis, kalkulasi material, sampai draf penawaran — semua dalam satu percakapan. Sistem ini modular, reproducible, dan siap dijalankan langsung dari repository GitHub.
