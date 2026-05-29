@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import threading
 from datetime import UTC, datetime
 from http import HTTPStatus
@@ -29,6 +30,7 @@ class SessionStore:
                 self._sessions[session_id] = {
                     "session_id": session_id,
                     "customer_name": customer_name,
+                    "customer_whatsapp": "",
                     "history": [],
                     "triage": None,
                     "staff_status": "new",
@@ -43,7 +45,78 @@ class SessionStore:
             if reply:
                 session["history"].append({"role": "assistant", "content": reply})
             session["triage"] = result
+            
+            # Extract WhatsApp number and customer name contextually if available from AI Agents
+            triage = result or {}
+            outputs = triage.get("agent_outputs") or {}
+            
+            # 1. Check Triage Router Agent output
+            router = outputs.get("triage_router") or {}
+            wa = router.get("customer_whatsapp")
+            name = router.get("customer_name")
+            
+            # 2. Check Requirement Intake Agent
+            if not wa:
+                intake = outputs.get("requirement_intake") or {}
+                wa = intake.get("customer_whatsapp")
+                if not name:
+                    name = intake.get("customer_name")
+            
+            # 3. Check Intent Classifier Agent
+            if not wa:
+                classifier = outputs.get("intent_classifier") or {}
+                wa = classifier.get("customer_whatsapp")
+                if not name:
+                    name = classifier.get("customer_name")
+            
+            # 4. Check ticket dict
+            if not wa:
+                wa = triage.get("ticket", {}).get("customer_whatsapp")
+                if not name:
+                    name = triage.get("ticket", {}).get("customer_name")
+            
+            if wa:
+                session["customer_whatsapp"] = str(wa)
+            if name and name != "Pelanggan":
+                session["customer_name"] = str(name)
+                
+            # Direct regex extraction from chat history as a robust fallback
+            if not session.get("customer_whatsapp"):
+                for msg_item in session.get("history", []):
+                    if msg_item.get("role") == "customer":
+                        phone_match = re.search(r"\b(?:\+62|62|0)8\d{7,13}\b", msg_item.get("content", ""))
+                        if phone_match:
+                            session["customer_whatsapp"] = phone_match.group(0)
+                            break
+                            
             session["updated_at"] = now
+
+    def update_trace(self, session_id: str, step: dict) -> None:
+        with self._lock:
+            now = datetime.now(UTC).isoformat()
+            if session_id not in self._sessions:
+                self._sessions[session_id] = {
+                    "session_id": session_id,
+                    "customer_name": "Pelanggan",
+                    "customer_whatsapp": "",
+                    "history": [],
+                    "triage": None,
+                    "staff_status": "new",
+                    "staff_notes": "",
+                    "created_at": now,
+                    "updated_at": now,
+                }
+            session = self._sessions[session_id]
+            if session.get("triage") is None:
+                session["triage"] = {"trace": []}
+            if "trace" not in session["triage"]:
+                session["triage"]["trace"] = []
+            
+            # Check if this step is already added
+            exists = any(s.get("agent") == step.get("agent") for s in session["triage"]["trace"])
+            if not exists:
+                session["triage"]["trace"].append(step)
+                session["updated_at"] = now
 
     def get(self, session_id: str) -> dict | None:
         with self._lock:
@@ -66,11 +139,14 @@ class SessionStore:
         with self._lock:
             summaries = []
             for session in self._sessions.values():
+                if not session.get("history"):
+                    continue
                 triage = session.get("triage") or {}
                 final = triage.get("final", {})
                 outputs = triage.get("agent_outputs", {})
                 classifier = outputs.get("intent_classifier", {})
-                missing = normalize_list(classifier.get("missing_information", []))
+                intake = outputs.get("requirement_intake", {})
+                missing = normalize_list(intake.get("missing_information", [])) if intake else normalize_list(classifier.get("missing_information", []))
                 if missing:
                     status = "waiting_info"
                 elif final.get("escalate"):
@@ -85,6 +161,7 @@ class SessionStore:
                 summaries.append({
                     "session_id": session["session_id"],
                     "customer_name": session["customer_name"],
+                    "customer_whatsapp": session.get("customer_whatsapp", ""),
                     "intent": final.get("intent"),
                     "category": final.get("category"),
                     "priority": final.get("priority"),
@@ -192,24 +269,28 @@ class WebApp:
                 history = payload.get("history", [])
                 if not message:
                     raise ValueError("Message is required.")
-                transcript = self._build_transcript(history, message)
+                transcript = self._build_transcript(history, "")
                 ticket = {
                     "id": "web-chat",
                     "customer_name": customer_name,
                     "channel": "Web Chat",
                     "subject": "Customer web chat",
-                    "message": transcript,
+                    "message": message,
+                    "history": transcript,
                 }
                 knowledge_base = read_json(app.root / "data/knowledge_base.json")
                 if mode == "live":
                     model = SumoPodChatModel(settings=load_settings(app.root))
                 else:
                     model = MockChatModel()
+                session_id = payload.get("session_id")
                 return run_workflow(
                     model=model,
                     ticket=ticket,
                     knowledge_base=knowledge_base,
                     output_dir=app.root / "runs",
+                    session_id=session_id,
+                    session_store=app.sessions,
                 )
 
             def _build_transcript(self, history: object, message: str) -> str:

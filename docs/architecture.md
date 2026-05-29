@@ -1,82 +1,103 @@
-# Architecture
+# Architecture & Orchestration System
 
-QHome AI Agent memakai arsitektur sequential multi-agent dengan shared state. Pendekatan ini sengaja dipilih agar alur komunikasi agent mudah diaudit, mudah dijelaskan dalam video, dan reproducible untuk juri. Sistem mendukung dua jenis kebutuhan: customer support triage dan product advice.
+QHome AI Agent menggunakan arsitektur **Hybrid Orchestration & Multi-Agent System** berbasis SQLite dan LLM. Sistem ini dirancang secara dinamis menggunakan **Triage Router Agent** di gerbang pertama untuk mendeteksi intent, membagi rute secara cerdas, dan menangani multi-intent secara elegan.
 
-## Workflow
+Sistem mendukung dua jalur pipeline utama:
+1. **5-Agent Legacy Support Pipeline**: Untuk penanganan komplain, after-sales, pelacakan pengiriman, dan layanan pelanggan standar.
+2. **7-Agent Renovation & Quotation Pipeline**: Untuk konsultasi desain, kalkulasi material otomatis, pengecekan inventori, pembuatan draf penawaran harga (quotation), dan audit kebijakan.
+
+---
+
+## 1. Alur Kerja Orchestrator (Workflow)
 
 ```mermaid
 flowchart TD
-    A[Customer Chat or Ticket] --> B[Intent Classifier Agent]
-    B --> C[Knowledge Retrieval Agent]
-    C --> D[Solution Planner Agent]
-    D --> E[Priority & Escalation Agent]
-    E --> F[QA & Final Response Agent]
-    F --> G[final_output.json]
-    F --> H[report.md]
-    B --> I[interactions.jsonl]
-    C --> I
-    D --> I
-    E --> I
-    F --> I
+    A[Customer Chat or Ticket] --> B[Hybrid Triage Router Agent]
+    
+    %% Triage Decision
+    B -->|Pipeline: support| C1[Intent Classifier Agent]
+    C1 --> C2[Knowledge Retrieval Agent]
+    C2 --> C3[Solution Planner Agent]
+    C3 --> C4[Priority & Escalation Agent]
+    C4 --> C5[QA & Final Response Agent]
+    C5 --> H[SQLite Database & Staff Dashboard]
+    
+    B -->|Pipeline: renovation_quote| D1[Requirement Intake Agent]
+    D1 --> D2[Product Retrieval Agent]
+    D2 --> D3[Inventory Snapshot Agent]
+    D3 --> D4[Quantity Estimator Agent]
+    D4 --> D5[Quote Builder Agent]
+    D5 --> D6[Risk & Policy Verifier Agent]
+    D6 -->|Critic Debate & Revision Loop| D5
+    D6 --> D7[Staff Handoff & Customer Response Agent]
+    D7 --> H
+    
+    %% Output Logging
+    H --> I[interactions.jsonl]
+    H --> J[final_output.json]
+    H --> K[report.md]
 ```
 
-## Web Demo UX
+---
 
-Web demo memakai dua panel:
+## 2. Layer Triage & Orchestration (AI-Powered Multi-Intent Router)
 
-- Customer Chat: UI seperti chat CS biasa. Pelanggan dapat mengirim pesan lanjutan.
-- Staff Triage Panel: panel internal untuk melihat priority, escalation, missing information, internal next steps, dan agent trace.
+Alih-alih menggunakan aturan berbasis kata kunci (*rule-based text matching*), gerbang utama QHome AI sekarang menggunakan **Triage Router Agent** formal berbasis LLM. Agent ini secara cerdas menghasilkan output JSON terstruktur untuk mengevaluasi maksud pelanggan.
 
-Pemisahan ini penting karena customer hanya membutuhkan jawaban natural, sedangkan staff/juri membutuhkan bukti reasoning dan keputusan operasional.
-
-## Shared State
-
-Setiap agent menerima state berisi ticket awal dan output agent sebelumnya. Agent berikutnya tidak bekerja dari nol, tetapi memakai hasil analisis sebelumnya sebagai konteks.
-
-Format state ringkas:
-
+### Parameter Output Triage Router
 ```json
 {
-  "run_id": "run-xxxx",
-  "ticket": {},
-  "agent_outputs": {
-    "intent_classifier": {},
-    "knowledge_retrieval": {}
-  }
+  "primary_intent": "damaged_item",
+  "secondary_intents": ["renovation_quote"],
+  "selected_pipeline": "support",
+  "multi_intent": true,
+  "routing_reason": "Pelanggan mengeluhkan barang pecah sekaligus meminta estimasi renovasi...",
+  "priority_rule": "complaint_first",
+  "staff_handoff_notes": "PENTING: Tangani klaim keramik pecah terlebih dahulu. Jangan menawarkan sales tambahan secara agresif sebelum komplain selesai."
 }
 ```
 
-## Agent Responsibilities
+### Aturan Bisnis Utama (Business Rules)
+*   **Complaint/Safety/High-Risk First**: Jika pelanggan mengajukan keluhan/komplain bersamaan dengan permintaan order/renovasi (*mixed multi-intent*), sistem **wajib memprioritaskan komplain** dan mengarahkan ke pipa `support`.
+*   **Secondary Handoff Capture**: Keinginan renovasi/pembelian dicatat sebagai intent sekunder (`secondary_intents`) dan didokumentasikan secara aman di instruksi staf (`staff_handoff_notes`).
+*   **Tone Protection**: Sistem melarang nada penjualan (*sales*) yang agresif saat pelanggan sedang mengeluhkan barang rusak demi menjaga kepuasan pelanggan.
 
-- Intent Classifier Agent: menentukan intent, kategori, confidence, ringkasan, dan informasi yang belum lengkap. Intent dapat berupa support issue atau product_advice.
-- Knowledge Retrieval Agent: memilih policy/FAQ/product guide yang relevan dari `data/knowledge_base.json`.
-- Solution Planner Agent: membuat langkah penyelesaian, rekomendasi tipe produk, dan outline respons pelanggan.
-- Priority & Escalation Agent: menilai urgency, risiko bisnis, SLA, dan apakah perlu eskalasi manusia.
-- QA & Final Response Agent: menyatukan hasil agent, mengecek konsistensi, dan membuat output final.
+---
 
-## Logging
+## 3. Shared State & SQLite Repository
 
-Setiap run menghasilkan:
+Semua agen berkomunikasi melalui shared `RunState` yang merekam setiap langkah pengerjaan secara terurut. Selain file JSON, seluruh daur hidup transaksi dan jalannya agen dicatat di database relasional SQLite (`data/qhome_agent.db`), yang mencakup:
+*   `agent_runs`: Melacak nama agen, payload input, output JSON, dan waktu eksekusi.
+*   `tickets`: Menyimpan data tiket aktif, nomor WhatsApp, status keluhan, dan info yang masih kurang.
+*   `quotes` & `quote_items`: Menyimpan draf penawaran material, total biaya, status anggaran, dan rincian produk terpilih.
+*   `products` & `inventory`: Menyimpan katalog material bangunan dan snapshot stok fisik.
 
-- `interactions.jsonl`: satu baris JSON per agent, berisi nama agent dan output.
-- `final_output.json`: output akhir plus trace lengkap.
-- `report.md`: ringkasan manusiawi untuk demo/video.
+---
 
-## API Strategy
+## 4. Peran Masing-Masing Agen (Agent Responsibilities)
 
-Live mode memakai SumoPod AI sebagai OpenAI-compatible API:
+### Jalur 1: Legacy Support Pipeline (5 Agents)
+1.  **Intent Classifier Agent**: Mengklasifikasikan tiket dan mendeteksi data yang kurang.
+2.  **Knowledge Retrieval Agent**: Mencari kebijakan pendukung (misal kebijakan retur 7 hari) dari basis pengetahuan.
+3.  **Solution Planner Agent**: Merancang draf solusi penyelesaian masalah.
+4.  **Priority & Escalation Agent**: Menilai prioritas, risiko bisnis, dan SLA eskalasi manusia.
+5.  **QA & Final Response Agent**: Menyusun respons empatik final dan langkah staf internal.
 
-```text
-POST https://ai.sumopod.com/v1/chat/completions
-```
+### Jalur 2: Renovation & Quotation Pipeline (7 Agents)
+1.  **Requirement Intake Agent**: Mengekstrak ukuran area, lokasi, anggaran, dan kategori proyek.
+2.  **Product Retrieval Agent**: Memilih SKU material asli yang cocok dari katalog produk SQLite.
+3.  **Inventory Snapshot Agent**: Memeriksa ketersediaan stok fisik cabang secara real-time.
+4.  **Quantity Estimator Agent**: Melakukan estimasi kuantitas material menggunakan kalkulator deterministik (tiling & painting) ditambah waste factor 10%.
+5.  **Quote Builder Agent**: Menyusun draf penawaran harga dengan kode unik `QTE-`.
+6.  **Risk & Policy Verifier Agent (The Critic)**: Melakukan audit kepatuhan terhadap kebijakan (*POL-STOCK-SNAPSHOT*, *POL-PRICE-ESTIMATE*, *POL-CONTACT-CONSENT*). Melakukan loop revisi aktif bersama Quote Builder jika ditemukan kesalahan klaim stok/harga.
+7.  **Staff Handoff & Customer Response Agent**: Menyusun rangkuman tugas staf internal, instruksi WhatsApp, dan respons aman kepada pelanggan.
 
-Mock mode tersedia supaya repo tetap bisa dinilai tanpa API key dan tanpa biaya token.
+---
 
-## Data Strategy
+## 5. Daur Hidup Logging & Evaluasi
 
-Untuk MVP, data dibuat eksplisit di repository agar reproducible:
-
-- Support policies: retur, pengiriman, garansi, instalasi, pembayaran.
-- Product guides: dinding lembab/cat, kebocoran kamar mandi, pemilihan keramik, lampu LED.
-
-Database cloud belum menjadi dependency runtime. Jika QHome Mart ingin implementasi production, lapisan knowledge base dapat dipindah dari JSON ke MariaDB/SumoPod database, spreadsheet internal, CMS, atau vector database.
+Setiap eksekusi workflow secara otomatis memproduksi file audit komprehensif:
+*   `runs/<run_id>/interactions.jsonl`: Catatan mentah interaksi per-agen.
+*   `runs/<run_id>/final_output.json`: Berkas JSON lengkap yang dikonsumsi oleh web dashboard.
+*   `runs/<run_id>/report.md`: Laporan markdown format manusia untuk presentasi juri.
+*   Evaluasi Kinerja: Diuji otomatis menggunakan `python3 run.py eval` untuk memvalidasi performa akurasi, kepatuhan safety, dan kualitas estimasi.

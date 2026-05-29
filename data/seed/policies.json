@@ -1,0 +1,6 @@
+[
+  {"policy_code":"POL-STOCK-SNAPSHOT","title":"Inventory Snapshot Safety","summary":"Stok demo adalah snapshot dan harus dikonfirmasi staff sebelum customer menerima kepastian.","risk_note":"Jangan klaim stok real-time."},
+  {"policy_code":"POL-PRICE-ESTIMATE","title":"Draft Price Estimate","summary":"Draft quotation adalah estimasi awal. Harga akhir, promo, ongkir, dan varian harus divalidasi staff.","risk_note":"Jangan menyebut harga final."},
+  {"policy_code":"POL-CONTACT-CONSENT","title":"Customer Contact Consent","summary":"Nomor WhatsApp hanya diminta jika perlu follow-up staff dan hanya digunakan setelah diberikan customer.","risk_note":"Jangan membuat link WhatsApp atau auto-send."},
+  {"policy_code":"POL-RENOVATION-RISK","title":"Renovation Requirement Risk","summary":"Ukuran ruangan, kondisi permukaan, alamat, warna, dan varian produk harus jelas sebelum order diproses.","risk_note":"Staff perlu validasi lapangan untuk pekerjaan renovasi."}
+]

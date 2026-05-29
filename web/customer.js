@@ -37,6 +37,9 @@ async function send() {
   const name = customerName.value.trim() || "Pelanggan";
   if (!text) return;
 
+  // Lock customer name input after first message
+  customerName.disabled = true;
+
   history.push({ role: "customer", content: text });
   renderChat();
   message.value = "";
@@ -45,6 +48,14 @@ async function send() {
 
   /* Hide samples after first message */
   samplesRow.hidden = true;
+
+  // Append premium visual typing indicator
+  const typingIndicator = document.createElement("div");
+  typingIndicator.className = "bubble assistant";
+  typingIndicator.id = "typingIndicator";
+  typingIndicator.innerHTML = '<span class="bubble-name">QHome AI</span><div class="typing-dots"><span></span><span></span><span></span></div>';
+  chatThread.appendChild(typingIndicator);
+  chatThread.scrollTop = chatThread.scrollHeight;
 
   try {
     const res = await fetch("/api/run", {
@@ -64,9 +75,12 @@ async function send() {
     history.push({ role: "assistant", content: reply });
   } catch (err) {
     history.push({ role: "assistant", content: "Maaf, terjadi gangguan: " + err.message });
+  } finally {
+    const indicator = document.getElementById("typingIndicator");
+    if (indicator) indicator.remove();
+    renderChat();
+    sendBtn.disabled = false;
   }
-  renderChat();
-  sendBtn.disabled = false;
 }
 
 function renderChat() {
@@ -89,7 +103,14 @@ function renderChat() {
     label.textContent = item.role === "customer" ? name : "QHome AI";
     const p = document.createElement("p");
     p.className = "bubble-text";
-    p.textContent = item.content;
+    
+    // Parse basic markdown formatting
+    let formatted = item.content
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    p.innerHTML = formatted;
     div.append(label, p);
     chatThread.append(div);
   });

@@ -53,8 +53,14 @@
             <!-- Customer Info Bar -->
             <div class="detail-top">
               <div>
-                <h2 id="detailName">-</h2>
-                <p id="detailMeta" class="detail-meta">-</p>
+                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                  <h2 id="detailName" style="margin: 0;">-</h2>
+                  <a id="waContactBadge" href="#" target="_blank" class="status-badge" style="background: #25d366; color: white; display: none; text-decoration: none; align-items: center; gap: 4px; padding: 4px 8px; font-size: 11px; border-radius: 4px; font-weight: bold; border: none; cursor: pointer; transition: transform 0.2s;">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block;"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.003 5.324 5.328 0 11.859 0c3.161.001 6.136 1.233 8.375 3.468 2.238 2.234 3.471 5.205 3.471 8.367 0 6.537-5.322 11.86-11.855 11.86h-.001c-2.008-.002-3.989-.533-5.73-1.543L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.725 1.451 5.405 0 9.801-4.382 9.803-9.764 0-2.605-1.018-5.055-2.868-6.903C16.456 2.086 14.021 1.066 11.85 1.066c-5.402 0-9.8 4.382-9.802 9.764-.001 1.702.453 3.36 1.314 4.815L2.348 22.07l6.3-1.654c1.472.893 3.078 1.354 4.627 1.354z"/></svg>
+                    WhatsApp: <span id="waNumberText">-</span>
+                  </a>
+                </div>
+                <p id="detailMeta" class="detail-meta" style="margin-top: 4px;">-</p>
               </div>
               <div id="detailAiStatus" class="status-badge idle">-</div>
             </div>
@@ -91,10 +97,102 @@
               </div>
             </div>
 
+            <!-- Hybrid Triage Router (New!) -->
+            <div class="staff-section" id="triageRouterSection" hidden>
+              <h3>Hybrid Triage Router &amp; Multi-Intent Orchestration</h3>
+              <div class="router-top-bar" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-bottom: 15px;">
+                <div class="triage-card" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 8px;">
+                  <span class="card-label">Primary Intent</span>
+                  <strong id="trPrimaryIntent" class="card-value" style="font-size: 16px; color: var(--ok);">-</strong>
+                </div>
+                <div class="triage-card" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 8px;">
+                  <span class="card-label">Pipeline Terpilih</span>
+                  <strong id="trSelectedPipeline" class="card-value" style="font-size: 16px; color: var(--accent);">-</strong>
+                </div>
+                <div class="triage-card" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 8px;">
+                  <span class="card-label">Aturan Prioritas</span>
+                  <strong id="trPriorityRule" class="card-value" style="font-size: 16px; color: #ff9800;">-</strong>
+                </div>
+                <div class="triage-card" style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); padding: 12px; border-radius: 8px;">
+                  <span class="card-label">Multi Intent?</span>
+                  <strong id="trMultiIntent" class="card-value" style="font-size: 16px;">-</strong>
+                </div>
+              </div>
+              <div class="triage-secondary-intents" style="margin-bottom: 15px;">
+                <span class="card-label">Intent Sekunder Terdeteksi</span>
+                <ul id="trSecondaryIntents" class="pill-list" style="margin-top: 5px;"></ul>
+              </div>
+              <div class="triage-reasoning-box" style="background: rgba(255,255,255,0.02); border-left: 4px solid var(--accent); padding: 12px; border-radius: 0 8px 8px 0; margin-bottom: 15px;">
+                <span class="card-label" style="font-weight: 600;">Analisis Rute Router</span>
+                <p id="trRoutingReason" style="margin: 5px 0 0 0; font-size: 14px; line-height: 1.5; color: var(--muted);">-</p>
+              </div>
+              <div class="triage-handoff-box" style="background: rgba(255,235,235,0.04); border-left: 4px solid var(--danger); padding: 12px; border-radius: 0 8px 8px 0;">
+                <span class="card-label" style="font-weight: 600; color: #ff5252;">Catatan Handoff Staf (Multi-Intent Priority)</span>
+                <p id="trHandoffNotes" style="margin: 5px 0 0 0; font-size: 14px; line-height: 1.5; color: #ffbaba; font-weight: 500;">-</p>
+              </div>
+            </div>
+
             <!-- Customer Reply -->
             <div class="staff-section">
               <h3>Balasan AI ke Customer</h3>
               <div id="dCustomerReply" class="reply-box">-</div>
+            </div>
+
+            <!-- Quotation & Estimates (New!) -->
+            <div class="staff-section" id="quoteSection" hidden>
+              <h3>Draft Quotation &amp; Estimate</h3>
+              <div class="quote-summary-bar">
+                <div class="quote-sum-item">
+                  <span class="card-label">Quote Code</span>
+                  <strong id="qCode" class="card-value">-</strong>
+                </div>
+                <div class="quote-sum-item">
+                  <span class="card-label">Estimated Total</span>
+                  <strong id="qTotal" class="card-value" style="color: var(--brand); font-size: 16px;">-</strong>
+                </div>
+                <div class="quote-sum-item">
+                  <span class="card-label">Budget Status</span>
+                  <strong id="qBudgetStatus" class="card-value">-</strong>
+                </div>
+              </div>
+              <div class="quote-items-table-container">
+                <table class="quote-table">
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>Nama Produk</th>
+                      <th style="text-align: right; padding-right: 20px;">Qty</th>
+                      <th>Unit</th>
+                      <th style="text-align: right; padding-right: 20px;">Harga</th>
+                      <th style="text-align: right; padding-right: 20px;">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody id="qItemsBody"></tbody>
+                </table>
+              </div>
+              <div class="quote-notes-box">
+                <span class="card-label">Quotation Notes &amp; Terms</span>
+                <p id="qNotes" class="quote-notes-text">-</p>
+              </div>
+            </div>
+
+            <!-- Risk & Policy Verifier (New!) -->
+            <div class="staff-section" id="verifierSection" hidden>
+              <h3>Compliance Risk Audit &amp; Critic Debate</h3>
+              <div class="verifier-top-bar">
+                <div class="verifier-sum-item">
+                  <span class="card-label">Verifier Risk Level</span>
+                  <strong id="vRiskLevel" class="card-value">-</strong>
+                </div>
+                <div class="verifier-sum-item">
+                  <span class="card-label">Audit Review Status</span>
+                  <strong id="vRevisionStatus" class="card-value">-</strong>
+                </div>
+              </div>
+              <div class="verifier-debate-box">
+                <span class="card-label">Critic Policy Debate &amp; Review Log</span>
+                <div id="vDebateLog" class="debate-log-box">-</div>
+              </div>
             </div>
 
             <!-- Missing Info -->
@@ -134,8 +232,18 @@
             </details>
 
             <!-- Agent Trace -->
-            <details class="staff-section collapsible">
-              <summary>Agent Trace <span id="dTraceCount" class="trace-count">0 agents</span></summary>
+            <details class="staff-section collapsible" open>
+              <summary style="display: flex; align-items: center; justify-content: space-between; cursor: pointer; user-select: none;">
+                <div>Agent Trace <span id="dTraceCount" class="trace-count">0 agents</span></div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <button id="simBtn" class="btn-primary btn-sm" style="display:none; align-items:center; gap:4px; background:var(--brand); color:white; border:none; padding:4px 10px; border-radius:4px; font-size:11px; cursor:pointer;">
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" style="display:inline-block; margin-right:2px;"><path d="M8 5v14l11-7z"/></svg>Simulasi Live
+                  </button>
+                  <button id="instantBtn" class="btn-ghost btn-sm" style="display:none; padding:4px 8px; font-size:11px; cursor:pointer; height:24px; line-height:16px; border: 1px solid rgba(255,255,255,0.1); border-radius:4px;">
+                    Instan
+                  </button>
+                </div>
+              </summary>
               <div id="dTrace" class="trace-list"></div>
             </details>
 
