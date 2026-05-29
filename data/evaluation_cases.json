@@ -1,0 +1,9 @@
+[
+  {"id":"eval-bathroom-2x2","customer_name":"Ibu Maya","subject":"Renovasi kamar mandi 2x2m","message":"Saya mau renovasi kamar mandi ukuran 2x2m. Butuh keramik lantai anti slip, waterproofing, perekat, dan nat. Budget maksimal 3 juta. Alamat di Jalan Kaliurang, Sleman."},
+  {"id":"eval-damp-wall","customer_name":"Raka","subject":"Dinding lembab butuh cat","message":"Dinding kamar lembab dan ada jamur, luas kira-kira 12 m2. Saya butuh cat atau waterproofing yang cocok, warna putih."},
+  {"id":"eval-living-room-tile","customer_name":"Dina","subject":"Pilih keramik ruang tamu","message":"Saya cari keramik ruang tamu ukuran area 4x5 meter, ingin motif matte warna abu-abu. Tolong buat estimasi awal."},
+  {"id":"eval-damaged-item","customer_name":"Pak Budi","subject":"Komplain barang rusak","message":"Pesanan QH-77881 sampai tapi 2 box keramik pecah. Saya komplain karena mau dipasang minggu ini."},
+  {"id":"eval-led-home","customer_name":"Nana","subject":"Pembelian lampu LED rumah","message":"Saya mau beli lampu LED untuk rumah, butuh sekitar 8 titik lampu ruang tamu dan kamar. Minta rekomendasi produk dan estimasi."},
+  {"id":"eval-empty","customer_name":"Anon","subject":"","message":" "},
+  {"id":"eval-mixed-lang","customer_name":"John","subject":"Need help","message":"halo min, my pesanan QH-12345 broken, keramik pecah semua wtf. Please refund asap."}
+]

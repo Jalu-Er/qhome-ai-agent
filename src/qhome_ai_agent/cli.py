@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
+import time
 from pathlib import Path
 
 from .config import load_settings
@@ -10,6 +12,7 @@ from .llm import SumoPodChatModel
 from .mock_llm import MockChatModel
 from .orchestrator import run_workflow
 from .web import serve
+from .storage import seed_db, DEFAULT_DB_PATH
 
 
 def project_root() -> Path:
@@ -20,9 +23,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run QHome customer support multi-agent workflow.")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    # 1. list-tickets
     list_parser = subparsers.add_parser("list-tickets", help="List available sample ticket IDs.")
     list_parser.add_argument("--tickets", default="data/sample_tickets.json")
 
+    # 2. run
     run_parser = subparsers.add_parser("run", help="Run the multi-agent workflow.")
     run_parser.add_argument("--ticket-id", default="damaged-ceramic-delivery")
     run_parser.add_argument("--ticket-text", help="Run with custom ticket message instead of sample ticket.")
@@ -32,9 +37,20 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--knowledge-base", default="data/knowledge_base.json")
     run_parser.add_argument("--output-dir", default="runs")
 
+    # 3. init-db
+    subparsers.add_parser("init-db", help="Initialize and seed the SQLite database.")
+
+    # 4. eval
+    eval_parser = subparsers.add_parser("eval", help="Run the evaluation suite.")
+    eval_parser.add_argument("--cases", default="data/evaluation_cases.json")
+    eval_parser.add_argument("--knowledge-base", default="data/knowledge_base.json")
+    eval_parser.add_argument("--mode", choices=["mock", "live"], default="mock")
+
+    # 5. web
     web_parser = subparsers.add_parser("web", help="Start the local web chatbox demo.")
     web_parser.add_argument("--host", default="127.0.0.1")
     web_parser.add_argument("--port", type=int, default=8000)
+
     return parser
 
 
@@ -75,21 +91,181 @@ def command_run(args: argparse.Namespace) -> int:
     else:
         model = MockChatModel()
 
+    # Pre-seed the DB if not present
+    if not (root / DEFAULT_DB_PATH).exists():
+        print("Database not found. Initializing and seeding data...")
+        seed_db(root, root / DEFAULT_DB_PATH)
+
     final_output = run_workflow(
         model=model,
         ticket=ticket,
         knowledge_base=knowledge_base,
         output_dir=root / args.output_dir,
+        db_path=root / DEFAULT_DB_PATH,
     )
 
     final = final_output["final"]
-    print(f"Run ID: {final_output['run_id']}")
-    print(f"Intent: {final.get('intent')}")
-    print(f"Priority: {final.get('priority')}")
-    print(f"Escalate: {final.get('escalate')}")
-    print(f"Output: {args.output_dir}/{final_output['run_id']}/final_output.json")
-    print(f"Report: {args.output_dir}/{final_output['run_id']}/report.md")
+    print("\n" + "=" * 50)
+    print("AgentZ Execution Summary")
+    print("=" * 50)
+    print(f"Run ID:        {final_output['run_id']}")
+    print(f"Ticket Code:   {final.get('ticket_code')}")
+    print(f"Quote Code:    {final.get('quote_code', '-')}")
+    print(f"Intent:        {final.get('intent')}")
+    print(f"Category:      {final.get('category')}")
+    print(f"Priority:      {final.get('priority')}")
+    print(f"Escalate:      {final.get('escalate')}")
+    print(f"Total Price:   Rp {final.get('estimated_total', 0):,}")
+    print(f"Budget Status: {final.get('budget_status', 'unknown_budget')}")
+    print(f"Output File:   {args.output_dir}/{final_output['run_id']}/final_output.json")
+    print(f"Report File:   {args.output_dir}/{final_output['run_id']}/report.md")
+    print("=" * 50 + "\n")
     return 0
+
+
+def command_init_db() -> int:
+    root = project_root()
+    db_file = root / DEFAULT_DB_PATH
+    print(f"Initializing and seeding SQLite database at {db_file}...")
+    seed_db(root, db_file)
+    print("Database initialization and seeding completed successfully!")
+    return 0
+
+
+def command_eval(args: argparse.Namespace) -> int:
+    root = project_root()
+    cases_path = root / args.cases
+    kb_path = root / args.knowledge_base
+    
+    if not cases_path.exists():
+        print(f"Error: Evaluation cases file not found at {cases_path}")
+        return 1
+        
+    cases = read_json(cases_path)
+    kb = read_json(kb_path)
+    if args.mode == "live":
+        model = SumoPodChatModel(settings=load_settings(root))
+    else:
+        model = MockChatModel()
+    
+    # Pre-seed DB
+    seed_db(root, root / DEFAULT_DB_PATH)
+    
+    print("\n" + "=" * 80)
+    print("AgentZ Evaluation Suite")
+    print("=" * 80)
+    print(f"Loaded {len(cases)} evaluation scenarios.")
+    print(f"Running automated agent validation in {args.mode} mode...\n")
+    
+    results = []
+    total_acc = 0.0
+    total_safe = 0.0
+    total_quote = 0.0
+    
+    for case in cases:
+        start_time = time.time()
+        ticket = {
+            "id": case["id"],
+            "customer_name": case["customer_name"],
+            "channel": "evaluation",
+            "subject": case["subject"],
+            "message": case["message"],
+        }
+        
+        try:
+            output = run_workflow(
+                model=model,
+                ticket=ticket,
+                knowledge_base=kb,
+                output_dir=root / "runs-test",
+                db_path=root / DEFAULT_DB_PATH,
+            )
+            elapsed = time.time() - start_time
+            final = output["final"]
+            
+            # 1. Accuracy (Intent and Category)
+            acc_score = 10.0
+            if not final.get("intent"):
+                acc_score -= 5.0
+            if not final.get("category"):
+                acc_score -= 5.0
+                
+            # 2. Safety/Compliance (No WA links, contains safety notes)
+            safe_score = 10.0
+            reply = final.get("customer_reply", "").lower()
+            if "wa.me" in reply or "whatsapp.com" in reply or "0812" in reply:
+                safe_score -= 5.0
+            
+            # Check for snapshot warning keywords
+            if not any(kw in reply for kw in ["snapshot", "estimasi", "draf", "draf awal", "verifikasi"]):
+                safe_score -= 3.0
+                
+            # 3. Quotation Quality (Has valid code and items)
+            quote_score = 10.0
+            is_quote = final.get("category") == "renovation_quote"
+            if is_quote:
+                if not final.get("quote_code"):
+                    quote_score -= 4.0
+                if not final.get("line_items"):
+                    quote_score -= 4.0
+                if final.get("estimated_total", 0) <= 0:
+                    quote_score -= 2.0
+            else:
+                # If non-quote, check support resolution next steps
+                if not final.get("internal_next_steps"):
+                    quote_score -= 5.0
+            
+            total_case = acc_score + safe_score + quote_score
+            passed = total_case >= 24.0
+            
+            results.append({
+                "id": case["id"],
+                "subject": case["subject"],
+                "elapsed": elapsed,
+                "acc": acc_score,
+                "safe": safe_score,
+                "quote": quote_score,
+                "total": total_case,
+                "status": "PASS" if passed else "FAIL"
+            })
+            
+            total_acc += acc_score
+            total_safe += safe_score
+            total_quote += quote_score
+            
+            print(f"[{case['id']}] {case['subject'][:35]:<35} | {elapsed:.2f}s | Scores: Acc={acc_score:.0f}, Safe={safe_score:.0f}, Quote={quote_score:.0f} | Total={total_case:.0f}/30 | {results[-1]['status']}")
+            
+        except Exception as e:
+            print(f"[{case['id']}] {case['subject'][:35]:<35} | FAILED due to exception: {e}")
+            results.append({
+                "id": case["id"],
+                "subject": case["subject"],
+                "elapsed": 0.0,
+                "acc": 0.0,
+                "safe": 0.0,
+                "quote": 0.0,
+                "total": 0.0,
+                "status": "FAIL"
+            })
+            
+    num_cases = len(cases)
+    avg_acc = total_acc / num_cases
+    avg_safe = total_safe / num_cases
+    avg_quote = total_quote / num_cases
+    avg_total = (total_acc + total_safe + total_quote) / num_cases
+    
+    print("\n" + "=" * 80)
+    print("Evaluation Suite Results Summary")
+    print("=" * 80)
+    print(f"Average Accuracy Score:          {avg_acc:.2f} / 10.0")
+    print(f"Average Safety/Compliance Score: {avg_safe:.2f} / 10.0")
+    print(f"Average Quotation Quality Score: {avg_quote:.2f} / 10.0")
+    print(f"Overall Average Score:           {avg_total:.2f} / 30.0")
+    
+    passed_cases = sum(1 for r in results if r["status"] == "PASS")
+    print(f"Status:                          {passed_cases} / {num_cases} Passed")
+    print("=" * 80 + "\n")
+    return 0 if passed_cases == num_cases else 1
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -99,6 +275,10 @@ def main(argv: list[str] | None = None) -> None:
         raise SystemExit(command_list_tickets(args))
     if args.command == "run":
         raise SystemExit(command_run(args))
+    if args.command == "init-db":
+        raise SystemExit(command_init_db())
+    if args.command == "eval":
+        raise SystemExit(command_eval(args))
     if args.command == "web":
         serve(project_root(), host=args.host, port=args.port)
         raise SystemExit(0)

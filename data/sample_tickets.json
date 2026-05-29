@@ -26,5 +26,12 @@
     "channel": "Web Chat",
     "subject": "Butuh rekomendasi cat untuk dinding lembab",
     "message": "Saya butuh cat dinding nih, tapi dinding rumah saya lembab dan ada sedikit jamur. Baiknya pakai apa ya?"
+  },
+  {
+    "id": "bathroom-renovation-quote",
+    "customer_name": "Jalue",
+    "channel": "Web Chat",
+    "subject": "Estimasi biaya renovasi kamar mandi 2x2m",
+    "message": "Saya ingin merenovasi kamar mandi dengan ukuran lantai 2x2m. Saya butuh estimasi biaya untuk keramik lantai anti slip, perekat keramik, closet duduk, dan shower set. Budget saya maksimal 2 juta Rupiah. Tolong buatkan rincian kebutuhan materialnya."
   }
 ]

@@ -16,5 +16,8 @@ logs/
 runs/
 runs-test/
 outputs/
+data/qhome_agent.db
+data/*.db
 
 .DS_Store
+web.log

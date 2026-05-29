@@ -1,0 +1,17 @@
+{
+  "provider": "external_sql",
+  "dialect": "mysql",
+  "read_only": true,
+  "tables": {
+    "product_table": "barang",
+    "inventory_table": "stok_gudang"
+  },
+  "columns": {
+    "sku": "kode_barang",
+    "name": "nama_barang",
+    "category": "kategori",
+    "price": "harga_jual",
+    "unit": "satuan",
+    "stock_qty": "jumlah_stok"
+  }
+}

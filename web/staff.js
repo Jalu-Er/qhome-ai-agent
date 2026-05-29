@@ -12,6 +12,9 @@ let sessions = [];
 let selectedId = null;
 let activeFilter = "all";
 
+let lastRenderedRunId = null;
+let lastRenderedMsgCount = 0;
+
 /* Filter buttons */
 document.querySelectorAll(".filter-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -88,7 +91,13 @@ function renderSidebar() {
   filtered.forEach((s) => {
     const item = document.createElement("div");
     item.className = "ticket-item" + (s.session_id === selectedId ? " active" : "");
-    item.addEventListener("click", () => { selectedId = s.session_id; loadDetail(s.session_id); renderSidebar(); });
+    item.addEventListener("click", () => {
+      selectedId = s.session_id;
+      lastRenderedRunId = null;
+      lastRenderedMsgCount = 0;
+      loadDetail(s.session_id);
+      renderSidebar();
+    });
 
     const top = document.createElement("div");
     top.className = "ticket-item-top";
@@ -145,15 +154,42 @@ function renderDetail(session) {
   const final = triage.final || {};
   const outputs = triage.agent_outputs || {};
   const classifier = outputs.intent_classifier || {};
+  const intake = outputs.requirement_intake || {};
   const prioData = outputs.priority_escalation || {};
   const trace = triage.trace || [];
 
-  /* Header */
+  const runId = triage.run_id || null;
+  const msgCount = session.history.length;
+  const isSameRun = (runId === lastRenderedRunId && msgCount === lastRenderedMsgCount);
+  
+  if (!isSameRun) {
+    lastRenderedRunId = runId;
+    lastRenderedMsgCount = msgCount;
+  }
+
+  /* Header & WhatsApp Contact */
   document.getElementById("detailName").textContent = session.customer_name;
   document.getElementById("detailMeta").textContent = "Session " + session.session_id + " · " + session.history.length + " pesan";
 
+  const waContactBadge = document.getElementById("waContactBadge");
+  const waNumberText = document.getElementById("waNumberText");
+  const whatsapp = session.customer_whatsapp;
+  if (whatsapp) {
+    waContactBadge.style.display = "inline-flex";
+    waNumberText.textContent = whatsapp;
+    
+    // Clean and format number for international wa.me link
+    let clean = whatsapp.replace(/\D/g, "");
+    if (clean.startsWith("0")) {
+      clean = "62" + clean.slice(1);
+    }
+    waContactBadge.href = "https://wa.me/" + clean;
+  } else {
+    waContactBadge.style.display = "none";
+  }
+
   /* AI Status badge */
-  const missing = normalizeList(classifier.missing_information);
+  const missing = normalizeList(intake.missing_information || classifier.missing_information);
   let aiStatus, aiStatusClass;
   if (missing.length) { aiStatus = "Menunggu Info"; aiStatusClass = "warn"; }
   else if (final.escalate) { aiStatus = "Perlu Staff"; aiStatusClass = "danger"; }
@@ -191,6 +227,115 @@ function renderDetail(session) {
   /* Customer Reply */
   document.getElementById("dCustomerReply").textContent = final.customer_reply || "-";
 
+  /* Render Quote if it exists */
+  const quoteSection = document.getElementById("quoteSection");
+  const quoteCode = final.quote_code || (outputs.quote_builder || {}).quote_code;
+  const lineItems = final.line_items || (outputs.quote_builder || {}).line_items || [];
+  
+  if (quoteCode) {
+    quoteSection.hidden = false;
+    document.getElementById("qCode").textContent = quoteCode;
+    
+    const totalVal = final.estimated_total || (outputs.quote_builder || {}).estimated_total || 0;
+    document.getElementById("qTotal").textContent = "Rp " + Number(totalVal).toLocaleString("id-ID");
+    
+    const bStatus = final.budget_status || (outputs.quote_builder || {}).budget_status || "unknown_budget";
+    const qBudgetStatus = document.getElementById("qBudgetStatus");
+    qBudgetStatus.textContent = fmt(bStatus);
+    if (bStatus === "within_budget") {
+      qBudgetStatus.style.color = "var(--ok)";
+    } else if (bStatus === "over_budget") {
+      qBudgetStatus.style.color = "var(--danger)";
+    } else {
+      qBudgetStatus.style.color = "var(--muted)";
+    }
+    
+    const itemsBody = document.getElementById("qItemsBody");
+    itemsBody.innerHTML = "";
+    lineItems.forEach((item) => {
+      const tr = document.createElement("tr");
+      
+      const tdSku = document.createElement("td");
+      tdSku.textContent = item.sku || "-";
+      tdSku.style.fontWeight = "600";
+      
+      const tdName = document.createElement("td");
+      tdName.textContent = item.name || "-";
+      
+      const tdQty = document.createElement("td");
+      tdQty.textContent = Number(item.estimated_qty || item.qty || 0).toLocaleString("id-ID");
+      tdQty.style.textAlign = "right";
+      tdQty.style.paddingRight = "20px";
+      
+      const tdUnit = document.createElement("td");
+      tdUnit.textContent = item.unit || "-";
+      
+      const priceVal = item.unit_price || item.price || 0;
+      const tdPrice = document.createElement("td");
+      tdPrice.textContent = "Rp " + Number(priceVal).toLocaleString("id-ID");
+      tdPrice.style.textAlign = "right";
+      tdPrice.style.paddingRight = "20px";
+      
+      const subtotalVal = item.subtotal || (priceVal * (item.estimated_qty || item.qty || 0));
+      const tdSub = document.createElement("td");
+      tdSub.textContent = "Rp " + Number(subtotalVal).toLocaleString("id-ID");
+      tdSub.style.textAlign = "right";
+      tdSub.style.paddingRight = "20px";
+      tdSub.style.fontWeight = "600";
+      tdSub.style.color = "var(--text)";
+      
+      tr.append(tdSku, tdName, tdQty, tdUnit, tdPrice, tdSub);
+      itemsBody.appendChild(tr);
+    });
+    
+    document.getElementById("qNotes").textContent = final.notes || (outputs.quote_builder || {}).notes || "-";
+  } else {
+    quoteSection.hidden = true;
+  }
+
+  /* Render Triage Router if it exists */
+  const trSection = document.getElementById("triageRouterSection");
+  const trOutput = outputs.triage_router;
+  if (trOutput) {
+    trSection.hidden = false;
+    document.getElementById("trPrimaryIntent").textContent = fmt(trOutput.primary_intent);
+    document.getElementById("trSelectedPipeline").textContent = fmt(trOutput.selected_pipeline);
+    document.getElementById("trPriorityRule").textContent = fmt(trOutput.priority_rule || "standard_routing");
+    document.getElementById("trMultiIntent").textContent = trOutput.multi_intent ? "Ya (Multi-Intent)" : "Tidak";
+    renderPills(document.getElementById("trSecondaryIntents"), trOutput.secondary_intents);
+    document.getElementById("trRoutingReason").textContent = trOutput.routing_reason || "-";
+    document.getElementById("trHandoffNotes").textContent = trOutput.staff_handoff_notes || "-";
+  } else {
+    trSection.hidden = true;
+  }
+
+  /* Render Compliance Verifier if it exists */
+  const verifierSection = document.getElementById("verifierSection");
+  const verifierOutput = outputs.risk_policy_verifier;
+  if (verifierOutput) {
+    verifierSection.hidden = false;
+    
+    const riskLevel = verifierOutput.risk_level || "low";
+    const vRiskLevel = document.getElementById("vRiskLevel");
+    vRiskLevel.textContent = fmt(riskLevel);
+    vRiskLevel.className = "card-value " + (riskLevel.toLowerCase() === "high" ? "priority-high" : riskLevel.toLowerCase() === "medium" ? "priority-medium" : "priority-low");
+    
+    const revRequired = verifierOutput.revision_required;
+    const revApplied = verifierOutput.revision_applied;
+    const vRevisionStatus = document.getElementById("vRevisionStatus");
+    if (revApplied) {
+      vRevisionStatus.textContent = "Revisi Berhasil (Audit Lolos)";
+      vRevisionStatus.style.color = "var(--ok)";
+    } else {
+      vRevisionStatus.textContent = revRequired ? "Revisi Diperlukan (Audit Gagal)" : "Lolos Audit (Tanpa Revisi)";
+      vRevisionStatus.style.color = revRequired ? "var(--danger)" : "var(--ok)";
+    }
+    
+    document.getElementById("vDebateLog").textContent = verifierOutput.criticism_debate_log || verifierOutput.reasoning || "Tidak ada catatan log kritik.";
+  } else {
+    verifierSection.hidden = true;
+  }
+
   /* Missing */
   renderPills(document.getElementById("dMissing"), missing);
 
@@ -202,28 +347,44 @@ function renderDetail(session) {
   setText("dRisk", prioData.business_risk);
 
   /* Handoff */
-  document.getElementById("dHandoff").textContent = buildHandoff(session, final, classifier, prioData);
+  document.getElementById("dHandoff").textContent = buildHandoff(session, final, classifier, prioData, intake, trOutput);
 
   /* Conversation */
   document.getElementById("dMsgCount").textContent = session.history.length + " msg";
   document.getElementById("dConversation").textContent = session.history.map((m) => (m.role === "customer" ? session.customer_name : "QHome AI") + ": " + m.content).join("\n\n") || "-";
 
   /* Trace */
-  document.getElementById("dTraceCount").textContent = trace.length + " agent" + (trace.length !== 1 ? "s" : "");
-  const traceEl = document.getElementById("dTrace");
-  traceEl.innerHTML = "";
-  trace.forEach((step) => {
-    const item = document.createElement("div");
-    item.className = "trace-item";
-    const header = document.createElement("div");
-    header.className = "trace-agent-name";
-    header.innerHTML = '<span class="agent-dot"></span>' + fmt(step.agent);
-    const body = document.createElement("div");
-    body.className = "trace-body";
-    body.textContent = (step.output || {}).reasoning || JSON.stringify(step.output, null, 2);
-    item.append(header, body);
-    traceEl.append(item);
-  });
+  if (!isSameRun) {
+    if (window.simTimeoutId) {
+      clearTimeout(window.simTimeoutId);
+      window.simTimeoutId = null;
+    }
+    
+    const simBtn = document.getElementById("simBtn");
+    const instantBtn = document.getElementById("instantBtn");
+    if (trace && trace.length > 0) {
+      simBtn.style.display = "inline-flex";
+      simBtn.onclick = (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        playSimulation(trace);
+      };
+      
+      instantBtn.style.display = "inline-flex";
+      instantBtn.onclick = (e) => {
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+        renderStaticTrace(trace);
+      };
+
+      // Autoplay the step-by-step trace simulation so the staff can watch the agents' discussion live!
+      playSimulation(trace);
+    } else {
+      simBtn.style.display = "none";
+      instantBtn.style.display = "none";
+      const traceEl = document.getElementById("dTrace");
+      traceEl.innerHTML = '<div style="padding:15px; color:var(--muted); font-size:13px; font-style:italic;">Tidak ada riwayat diskusi agent.</div>';
+      document.getElementById("dTraceCount").textContent = "0 agents";
+    }
+  }
 
   /* Run ID */
   setText("dRunId", triage.run_id);
@@ -279,9 +440,25 @@ function renderSteps(el, items) {
   arr.forEach((t) => { const li = document.createElement("li"); li.textContent = typeof t === "string" ? t : JSON.stringify(t); el.append(li); });
 }
 
-function buildHandoff(session, final, classifier, prioData) {
-  const missing = normalizeList(classifier.missing_information);
+function buildHandoff(session, final, classifier, prioData, intake, triageRouter) {
+  const missing = normalizeList((intake || {}).missing_information || classifier.missing_information);
   const steps = normalizeList(final.internal_next_steps);
+  const tr = triageRouter || {};
+  
+  const trSection = [];
+  if (tr.selected_pipeline) {
+    trSection.push(
+      "",
+      "--- HYBRID TRIAGE ROUTER REPORT ---",
+      "Selected Pipeline: " + fmt(tr.selected_pipeline),
+      "Primary Intent: " + fmt(tr.primary_intent),
+      "Priority Rule: " + fmt(tr.priority_rule || "standard_routing"),
+      "Secondary Intents: " + (normalizeList(tr.secondary_intents).join(", ") || "Tidak ada"),
+      "Router Reason: " + (tr.routing_reason || "-"),
+      "Staff Handoff Notes: " + (tr.staff_handoff_notes || "-")
+    );
+  }
+
   return [
     "Customer: " + session.customer_name,
     "Session: " + session.session_id,
@@ -293,6 +470,7 @@ function buildHandoff(session, final, classifier, prioData) {
     "Team: " + fmt(final.escalation_team),
     "", "SLA: " + (prioData.sla_recommendation || "-"),
     "Risk: " + (prioData.business_risk || "-"),
+    ...trSection,
     "", "Missing:",
     ...(missing.length ? missing.map((i) => "- " + i) : ["- Tidak ada"]),
     "", "Next Steps:",
@@ -316,4 +494,114 @@ function formatListItem(value) {
   if (typeof value === "string") return value;
   if (value === null || value === undefined) return "";
   return JSON.stringify(value);
+}
+
+// Format agent trace outputs beautifully
+function formatTraceBody(step, body) {
+  const output = step.output || {};
+  if (step.agent === "Hybrid Router & Orchestrator" || output.selected_pipeline) {
+    body.innerHTML = `
+      <div class="trace-triage-summary" style="display:flex; flex-direction:column; gap:10px; font-size:13px; line-height:1.4;">
+        <div><strong style="color:var(--ok);">Pipeline:</strong> <span style="font-weight:600; text-transform: uppercase;">${fmt(output.selected_pipeline)}</span></div>
+        <div><strong style="color:var(--accent);">Primary Intent:</strong> <span>${fmt(output.primary_intent)}</span></div>
+        <div><strong style="color:#ff9800;">Priority Rule:</strong> <span>${fmt(output.priority_rule || "standard_routing")}</span></div>
+        <div><strong>Reason:</strong> <span style="color:var(--muted);">${output.routing_reason || "-"}</span></div>
+        <div style="background:rgba(255,82,82,0.06); padding:8px 12px; border-left:3px solid #ff5252; border-radius:3px; margin-top:5px;">
+          <strong style="color:#ff5252; display:block; margin-bottom:3px;">Staff Handoff Notes:</strong>
+          <span style="font-weight:500; color:#ffbaba;">${output.staff_handoff_notes || "-"}</span>
+        </div>
+      </div>
+    `;
+  } else {
+    body.textContent = output.reasoning || JSON.stringify(output, null, 2);
+  }
+}
+
+// Global simulation timer
+window.simTimeoutId = null;
+
+function renderStaticTrace(trace) {
+  if (window.simTimeoutId) {
+    clearTimeout(window.simTimeoutId);
+    window.simTimeoutId = null;
+  }
+  document.getElementById("dTraceCount").textContent = trace.length + " agents (Selesai)";
+  const traceEl = document.getElementById("dTrace");
+  traceEl.innerHTML = "";
+  trace.forEach((step) => {
+    const item = document.createElement("div");
+    item.className = "trace-item";
+    const header = document.createElement("div");
+    header.className = "trace-agent-name";
+    header.innerHTML = '<span class="agent-dot" style="background:#25d366;"></span>' + fmt(step.agent);
+    const body = document.createElement("div");
+    body.className = "trace-body";
+    formatTraceBody(step, body);
+    item.append(header, body);
+    traceEl.append(item);
+  });
+  traceEl.scrollTop = traceEl.scrollHeight;
+}
+
+function playSimulation(trace) {
+  if (window.simTimeoutId) clearTimeout(window.simTimeoutId);
+  const traceEl = document.getElementById("dTrace");
+  traceEl.innerHTML = "";
+  
+  let index = 0;
+  
+  function nextStep() {
+    // Remove previous typing indicator if it exists
+    const oldIndicator = document.getElementById("simTypingIndicator");
+    if (oldIndicator) oldIndicator.remove();
+    
+    if (index >= trace.length) {
+      document.getElementById("dTraceCount").textContent = trace.length + " agents (Simulasi Selesai)";
+      window.simTimeoutId = null;
+      return;
+    }
+    
+    const step = trace[index];
+    document.getElementById("dTraceCount").textContent = `Simulasi: Langkah ${index + 1} dari ${trace.length}...`;
+    
+    // Add real step card
+    const item = document.createElement("div");
+    item.className = "trace-item";
+    const header = document.createElement("div");
+    header.className = "trace-agent-name";
+    header.innerHTML = '<span class="agent-dot" style="background:#25d366;"></span>' + fmt(step.agent);
+    const body = document.createElement("div");
+    body.className = "trace-body";
+    formatTraceBody(step, body);
+    item.append(header, body);
+    traceEl.append(item);
+    
+    index++;
+    
+    // If there is a next step, append premium typing indicator
+    if (index < trace.length) {
+      const nextStepObj = trace[index];
+      const indicator = document.createElement("div");
+      indicator.id = "simTypingIndicator";
+      indicator.className = "trace-item";
+      indicator.style.borderStyle = "dashed";
+      indicator.style.opacity = "0.7";
+      indicator.innerHTML = `
+        <div class="trace-agent-name" style="background:transparent; border:none; display:flex; align-items:center; gap:8px;">
+          <div class="typing-dots" style="transform: scale(0.6); margin:0; display:flex; gap:3px;">
+            <span style="background:var(--brand);"></span>
+            <span style="background:var(--brand);"></span>
+            <span style="background:var(--brand);"></span>
+          </div>
+          <span style="font-style:italic; font-weight:normal; font-size:11px;">Mempersiapkan ${fmt(nextStepObj.agent)}...</span>
+        </div>
+      `;
+      traceEl.append(indicator);
+    }
+    
+    traceEl.scrollTop = traceEl.scrollHeight;
+    window.simTimeoutId = setTimeout(nextStep, 1500);
+  }
+  
+  nextStep();
 }
