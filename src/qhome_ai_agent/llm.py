@@ -70,7 +70,13 @@ class SumoPodChatModel:
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"{agent_name} API error {exc.code}: {detail}") from exc
+        except urllib.error.URLError as exc:
+            # Covers DNS failure, connection refused, timeout, etc.
+            raise urllib.error.URLError(
+                f"{agent_name} network error: {exc.reason}"
+            ) from exc
 
         data = json.loads(raw)
         content = data["choices"][0]["message"]["content"]
         return parse_json_object(content)
+

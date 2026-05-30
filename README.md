@@ -214,6 +214,9 @@ Live API adalah **mode demo utama**. Sistem menggunakan SumoPod AI (OpenAI-compa
 
 Setelah mengisi `.env`, buka Customer Chat UI dan pilih mode **"Live"** di dropdown pojok kanan atas.
 
+> **Catatan untuk evaluasi:** Live mode bersifat non-deterministik (bergantung pada LLM dan koneksi internet).
+> Untuk reproduksi hasil yang konsisten, gunakan Mock mode.
+
 ---
 
 ## Deterministic Test Mode (Mock)
@@ -373,15 +376,12 @@ qhome-ai-agent/
 │   └── web.py                      Web server (Python stdlib only)
 ├── tests/
 │   ├── golden/
-│   │   └── scenarios.json          Golden dataset evaluasi
-│   ├── test_alias_resolver.py
-│   ├── test_calculator_tools.py
-│   ├── test_integration_scenarios.py
-│   ├── test_mock_workflow.py
-│   ├── test_product_retrieval.py
-│   ├── test_renovation_pipeline.py
-│   ├── test_support_case_packet.py
-│   └── test_triage_normalization.py
+│   │   └── scenarios.json          Golden dataset evaluasi (5 skenario)
+│   ├── test_alias_resolver.py       Test resolusi nama alias produk
+│   ├── test_integration_scenarios.py  Test e2e pipeline support & renovasi
+│   ├── test_mock_workflow.py        Test routing, multi-intent, edge case
+│   ├── test_renovation_pipeline.py  Test 7-agent sequential & SQLite
+│   └── test_support_case_packet.py  Test instruksi staf & penanganan WA
 ├── web/
 │   ├── customer.html               Customer Chat UI
 │   ├── customer.js
