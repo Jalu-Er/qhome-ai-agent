@@ -157,6 +157,7 @@ function renderDetail(session) {
   const intake = outputs.requirement_intake || {};
   const prioData = outputs.priority_escalation || {};
   const trace = triage.trace || [];
+  const trOutput = outputs.triage_router || {};
 
   const runId = triage.run_id || null;
   const msgCount = session.history.length;
@@ -323,8 +324,7 @@ function renderDetail(session) {
 
   /* Render Triage Router if it exists */
   const trSection = document.getElementById("triageRouterSection");
-  const trOutput = outputs.triage_router;
-  if (trOutput) {
+  if (trOutput && Object.keys(trOutput).length > 0) {
     trSection.hidden = false;
     document.getElementById("trPrimaryIntent").textContent = fmt(trOutput.primary_intent);
     document.getElementById("trSelectedPipeline").textContent = fmt(trOutput.selected_pipeline);
