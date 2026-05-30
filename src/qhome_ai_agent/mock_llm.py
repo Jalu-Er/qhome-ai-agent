@@ -773,6 +773,14 @@ class MockChatModel:
         priority = outputs.get("priority_escalation", {})
         actions = solution.get("recommended_actions", [])
         missing = intent.get("missing_information", [])
+        
+        wa_in_ticket = ticket.get("customer_whatsapp") or ""
+        wa_in_outputs = (
+            (outputs.get("intent_classifier") or {}).get("customer_whatsapp")
+            or (outputs.get("triage_router") or {}).get("customer_whatsapp")
+            or ""
+        )
+        has_wa = bool(wa_in_ticket.strip() or wa_in_outputs.strip())
         if intent.get("intent") == "product_advice":
             response = (
                 f"Halo {ticket.get('customer_name', 'Kak')}, untuk dinding lembab sebaiknya jangan langsung ditutup cat akhir. "
@@ -789,13 +797,6 @@ class MockChatModel:
             )
         elif intent.get("intent") == "bulk_order_delivery":
             # Always check if we actually have a WA contact number — critical for staff to follow up
-            wa_in_ticket = ticket.get("customer_whatsapp") or ""
-            wa_in_outputs = (
-                (outputs.get("intent_classifier") or {}).get("customer_whatsapp")
-                or (outputs.get("triage_router") or {}).get("customer_whatsapp")
-                or ""
-            )
-            has_wa = bool(wa_in_ticket.strip() or wa_in_outputs.strip())
 
             if not has_wa:
                 # No WA number at all — must ask first!
@@ -853,12 +854,14 @@ class MockChatModel:
         }
         complaint_category = CATEGORY_MAP.get(intent_str, "Komplain Umum")
 
-        if escalate_bool:
-            staff_next_action = f"Eskalasi ke tim {escalation_team} dan hubungi pelanggan dalam 1 jam kerja untuk menindaklanjuti."
+        if not has_wa:
+            staff_next_action = "Tunggu pelanggan membalas chat dengan nomor WA/telepon aktif sebelum menghubungi lebih lanjut."
+        elif escalate_bool:
+            staff_next_action = f"Eskalasi ke tim {escalation_team} dan hubungi pelanggan via WA dalam 1 jam kerja untuk menindaklanjuti."
         elif data_missing:
             staff_next_action = f"Hubungi pelanggan via WA untuk melengkapi: {', '.join(data_missing[:2])}."
         else:
-            staff_next_action = "Verifikasi permintaan dan proses tindak lanjut sesuai SLA."
+            staff_next_action = "Hubungi pelanggan via WA untuk memverifikasi permintaan dan proses tindak lanjut sesuai SLA."
 
         sla_suggestion = "1 jam kerja" if prio_str == "high" else ("4 jam kerja" if prio_str == "medium" else "1 hari kerja")
 
