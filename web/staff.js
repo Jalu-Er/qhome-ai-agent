@@ -14,6 +14,8 @@ let activeFilter = "all";
 
 let lastRenderedRunId = null;
 let lastRenderedMsgCount = 0;
+let lastRenderedTraceLen = -1;
+let lastRenderedTraceSignature = "";
 
 /* Filter buttons */
 document.querySelectorAll(".filter-btn").forEach((btn) => {
@@ -159,13 +161,24 @@ function renderDetail(session) {
   const trace = triage.trace || [];
   const trOutput = outputs.triage_router || {};
 
-  const runId = triage.run_id || null;
+  const runId = triage.run_id || triage._current_run_id || null;
   const msgCount = session.history.length;
-  const isSameRun = (runId === lastRenderedRunId && msgCount === lastRenderedMsgCount);
+  const traceLen = Array.isArray(trace) ? trace.length : 0;
+  const traceSignature = Array.isArray(trace)
+    ? trace.map((s) => `${s.agent || ""}:${s.timestamp || ""}:${s.duration_ms || ""}`).join("|")
+    : "";
+
+  const isSameTrace =
+    runId === lastRenderedRunId &&
+    msgCount === lastRenderedMsgCount &&
+    traceLen === lastRenderedTraceLen &&
+    traceSignature === lastRenderedTraceSignature;
   
-  if (!isSameRun) {
+  if (!isSameTrace) {
     lastRenderedRunId = runId;
     lastRenderedMsgCount = msgCount;
+    lastRenderedTraceLen = traceLen;
+    lastRenderedTraceSignature = traceSignature;
   }
 
   /* Header & WhatsApp Contact */
@@ -382,7 +395,7 @@ function renderDetail(session) {
   document.getElementById("dConversation").textContent = session.history.map((m) => (m.role === "customer" ? session.customer_name : "QHome AI") + ": " + m.content).join("\n\n") || "-";
 
   /* Trace */
-  if (!isSameRun) {
+  if (!isSameTrace) {
     if (window.simTimeoutId) {
       clearTimeout(window.simTimeoutId);
       window.simTimeoutId = null;
