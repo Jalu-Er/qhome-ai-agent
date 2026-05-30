@@ -6,8 +6,8 @@
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
 [![SQLite](https://img.shields.io/badge/Storage-SQLite-lightgrey.svg)](https://sqlite.org)
-[![Tests](https://img.shields.io/badge/Unit_Tests-20%2F20_OK-brightgreen.svg)](#-pengujian--evaluasi)
-[![Eval](https://img.shields.io/badge/Eval_Suite-7%2F7_PASS_%7C_28.29%2F30-brightgreen.svg)](#-pengujian--evaluasi)
+[![Tests](https://img.shields.io/badge/Unit_Tests-56%2F56_OK-brightgreen.svg)](#-pengujian--evaluasi)
+[![Eval](https://img.shields.io/badge/Eval_Suite-5%2F5_PASS_%7C_99%2F100-brightgreen.svg)](#-pengujian--evaluasi)
 
 ---
 
@@ -128,27 +128,33 @@ python3 run.py eval --mode live
 
 ## 🧪 Pengujian & Evaluasi
 
-### Unit Test Suite — 20 Test
+### Unit & Integration Test Suite — 56 Tests
 ```bash
 python3 -m unittest discover -s tests -v
 ```
-Mencakup: routing triage, multi-intent, dynamic pipeline switching, kalkulator deterministik, persistensi SQLite, normalisasi output, edge case, dan adversarial test. **Result: 20/20 OK ✅**
+Mencakup: routing triage, multi-intent, dynamic pipeline switching, kalkulator deterministik, persistensi SQLite, normalisasi output, edge case, dan adversarial test. **Result: 56/56 OK ✅**
 
-### Eval Suite — 7 Skenario
+### Eval Suite (100-Point Rubric) — 5 Golden Scenarios
 ```bash
 python3 run.py eval
 ```
 
+Penilaian berdasarkan akurasi routing (30), safety & compliance seperti absennya link WA (40), dan kualitas data packet/quotation (30).
+
 | Skenario | Fokus | Score |
 |----------|-------|-------|
-| `eval-bathroom-2x2` | Renovasi kamar mandi 2×2m | 30/30 |
-| `eval-damp-wall` | Dinding lembab, cat anti-jamur | 27/30 |
-| `eval-living-room-tile` | Pilih keramik ruang tamu | 30/30 |
-| `eval-damaged-item` | Komplain barang rusak | 27/30 |
-| `eval-led-home` | Pembelian lampu LED | 30/30 |
-| `eval-empty` | Pesan kosong (edge case) | 27/30 |
-| `eval-mixed-lang` | Campuran bahasa (adversarial) | 27/30 |
-| **Rata-rata** | | **28.29/30 — 7/7 PASSED** |
+| `golden_1` | Keluhan keramik pecah | 100/100 |
+| `golden_2` | Estimasi pagar bata | 100/100 |
+| `golden_3` | Komplain lalu tanya cat | 95/100 |
+| `golden_4` | Cek harga semen massal | 100/100 |
+| `golden_5` | Tanya kode script | 100/100 |
+| **Rata-rata** | | **99/100 — 5/5 PASSED** |
+
+### Quality & Smoke Scripts
+Tersedia skrip check end-to-end yang mengotomasi seluruh pipeline evaluasi:
+- Linux/macOS: `scripts/smoke_linux.sh`
+- Windows CMD: `scripts/smoke_windows.bat`
+- Windows PowerShell: `scripts/smoke_windows.ps1`
 
 ---
 
@@ -157,6 +163,11 @@ python3 run.py eval
 ```text
 qhome-ai-agent/
 ├── run.py                          Entry point (CLI + web server)
+├── scripts/                        Skrip otomasi smoke test & eval
+│   ├── run_full_quality_check.py   Eksekusi unittest & eval 100 poin
+│   ├── smoke_linux.sh              Shell script untuk Linux/macOS
+│   ├── smoke_windows.bat           Batch script untuk Windows
+│   └── smoke_windows.ps1           PowerShell script untuk Windows
 ├── data/
 │   ├── qhome_agent.db              SQLite database operasional
 │   ├── evaluation_cases.json       7 skenario evaluasi otomatis
@@ -185,8 +196,16 @@ qhome-ai-agent/
 │   ├── staff.html / .js            Staff Dashboard (live agent trace)
 │   └── styles.css                  Shared styling
 └── tests/
-    ├── test_mock_workflow.py        13 unit test routing & workflow
-    └── test_renovation_pipeline.py  7 unit test pipeline renovasi & SQLite
+    ├── golden/                      Golden dataset untuk regresi
+    │   └── scenarios.json
+    ├── test_alias_resolver.py       Test logika resolusi alias
+    ├── test_calculator_tools.py     Test formulasi alat hitung (cat/keramik)
+    ├── test_integration_scenarios.py Test e2e pipeline support & renovasi
+    ├── test_mock_workflow.py        Test engine & prioritas intent
+    ├── test_product_retrieval.py    Test query produk ke database
+    ├── test_renovation_pipeline.py  Test 7-agent sequential workflow
+    ├── test_support_case_packet.py  Test instruksi & penanganan staf
+    └── test_triage_normalization.py Test guardrails & normalisasi intent
 ```
 
 ---

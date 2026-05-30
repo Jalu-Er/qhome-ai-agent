@@ -45,3 +45,39 @@ Yang ditunjukkan:
 - Sistem tetap membuat ticket operasional.
 - Tidak meminta upload di chat.
 - Staff handoff tetap aman untuk after-sales.
+
+## 4. Complaint-First Priority
+
+Customer:
+
+```text
+Keramik saya pecah 3 dus saat sampai. Oh ya, kalau mau nambah beli semen 2 sak harganya berapa?
+```
+
+Yang ditunjukkan:
+
+- Sistem mendeteksi `damaged_item` (komplain) dan `renovation_quote` (sales).
+- Routing difokuskan ke `support` pipeline untuk empati pada komplain.
+- Order semen dicatat di `secondary_intents` agar staff tahu ada peluang upsell *setelah* masalah selesai.
+
+## 5. Dynamic Pipeline Switching
+
+Customer (Chat 1):
+
+```text
+Pesanan keramik saya pecah 1 dus.
+```
+*(Agen menyelesaikan komplain)*
+
+Customer (Chat 2):
+
+```text
+Nomor WA saya 08123456789.
+Saya juga ingin pesan batu bata 3000 pcs untuk pagar, berapa estimasinya?
+```
+
+Yang ditunjukkan:
+
+- Sistem mendeteksi pesan terbaru adalah pesanan baru murni (tanpa kata komplain di pesan terakhir).
+- Triage Router memutus alur `support` dan secara dinamis *switch* ke `renovation_quote` (7-agent pipeline).
+- Quotation batu bata di-generate otomatis tanpa terhambat status komplain sebelumnya.

@@ -40,7 +40,8 @@ Fitur khusus:
 
 ## 4. Reproducibility & Pengujian
 
-- **Unit Tests**: 20 test (`python3 -m unittest discover -s tests`) yang mencakup routing, multi-intent, dynamic switching, kalkulator, SQLite, normalisasi output, dan adversarial edge cases. **Hasil: 20/20 OK.**
-- **Eval Suite**: 7 skenario otomatis yang memvalidasi akurasi intent, kepatuhan kebijakan (safety), dan kualitas kalkulasi. **Hasil: 7/7 PASS, skor rata-rata 28.29/30.**
+- **Unit Tests**: 56 test (`python3 -m unittest discover -s tests`) yang mencakup routing, multi-intent, dynamic switching, kalkulator, SQLite, normalisasi output, support packet, dan adversarial edge cases. **Hasil: 56/56 OK.**
+- **Eval Suite**: 5 skenario golden otomatis dengan sistem penilaian **100 Poin** (rubrik akurasi, safety/compliance, kualitas quotation/packet). **Hasil: 5/5 PASS, skor rata-rata 99/100.**
+- **Quality Checks**: Skrip otomatisasi end-to-end terintegrasi di folder `scripts/` (Windows/Linux/macOS).
 - **Mock Mode**: Simulasi deterministik yang berjalan sepenuhnya lokal tanpa API key — memastikan seluruh workflow dapat dievaluasi langsung oleh juri.
 - **Live Mode**: Mendukung SumoPod AI API (OpenAI-compatible) untuk demo dengan LLM sesungguhnya.

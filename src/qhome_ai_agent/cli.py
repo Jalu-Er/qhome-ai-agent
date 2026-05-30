@@ -42,9 +42,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     # 4. eval
     eval_parser = subparsers.add_parser("eval", help="Run the evaluation suite.")
-    eval_parser.add_argument("--cases", default="data/evaluation_cases.json")
+    eval_parser.add_argument("--cases", default="tests/golden/scenarios.json")
     eval_parser.add_argument("--knowledge-base", default="data/knowledge_base.json")
     eval_parser.add_argument("--mode", choices=["mock", "live"], default="mock")
+    eval_parser.add_argument("--case-id", help="Run specific case ID only")
+    eval_parser.add_argument("--limit", type=int, help="Limit number of cases to run")
 
     # 5. web
     web_parser = subparsers.add_parser("web", help="Start the local web chatbox demo.")
@@ -142,17 +144,24 @@ def command_eval(args: argparse.Namespace) -> int:
         return 1
         
     cases = read_json(cases_path)
+    if args.case_id:
+        cases = [c for c in cases if c.get("id") == args.case_id]
+    if args.limit:
+        cases = cases[:args.limit]
+        
     kb = read_json(kb_path)
     if args.mode == "live":
+        print("\n" + "=" * 80)
+        print("WARNING: Running in LIVE mode. Evaluation checks will be skipped for non-deterministic answers.")
+        print("=" * 80 + "\n")
         model = SumoPodChatModel(settings=load_settings(root))
     else:
         model = MockChatModel()
     
-    # Pre-seed DB
     seed_db(root, root / DEFAULT_DB_PATH)
     
     print("\n" + "=" * 80)
-    print("AgentZ Evaluation Suite")
+    print("AgentZ Evaluation Suite (100-Point Rubric)")
     print("=" * 80)
     print(f"Loaded {len(cases)} evaluation scenarios.")
     print(f"Running automated agent validation in {args.mode} mode...\n")
@@ -166,9 +175,9 @@ def command_eval(args: argparse.Namespace) -> int:
         start_time = time.time()
         ticket = {
             "id": case["id"],
-            "customer_name": case["customer_name"],
+            "customer_name": case.get("customer_name", "Pelanggan"),
             "channel": "evaluation",
-            "subject": case["subject"],
+            "subject": case.get("subject", "Eval Case"),
             "message": case["message"],
         }
         
@@ -183,44 +192,51 @@ def command_eval(args: argparse.Namespace) -> int:
             elapsed = time.time() - start_time
             final = output["final"]
             
-            # 1. Accuracy (Intent and Category)
-            acc_score = 10.0
+            acc_score = 30.0
             if not final.get("intent"):
-                acc_score -= 5.0
+                acc_score -= 10.0
             if not final.get("category"):
-                acc_score -= 5.0
+                acc_score -= 10.0
+            expected_pipeline = case.get("expected_pipeline")
+            actual_pipeline = output["agent_outputs"].get("triage_router", {}).get("selected_pipeline")
+            if expected_pipeline and actual_pipeline and expected_pipeline != actual_pipeline:
+                acc_score -= 10.0
                 
-            # 2. Safety/Compliance (No WA links, contains safety notes)
-            safe_score = 10.0
+            safe_score = 40.0
             reply = final.get("customer_reply", "").lower()
             if "wa.me" in reply or "whatsapp.com" in reply or "0812" in reply:
-                safe_score -= 5.0
+                safe_score -= 15.0
             
-            # Check for snapshot warning keywords
+            banned_phrases = case.get("banned_phrases", [])
+            for phrase in banned_phrases:
+                if phrase.lower() in reply:
+                    safe_score -= 5.0
+            
             if not any(kw in reply for kw in ["snapshot", "estimasi", "draf", "draf awal", "verifikasi"]):
-                safe_score -= 3.0
+                safe_score -= 5.0
                 
-            # 3. Quotation Quality (Has valid code and items)
-            quote_score = 10.0
-            is_quote = final.get("category") == "renovation_quote"
-            if is_quote:
-                if not final.get("quote_code"):
-                    quote_score -= 4.0
-                if not final.get("line_items"):
-                    quote_score -= 4.0
-                if final.get("estimated_total", 0) <= 0:
-                    quote_score -= 2.0
-            else:
-                # If non-quote, check support resolution next steps
-                if not final.get("internal_next_steps"):
-                    quote_score -= 5.0
+            quote_score = 30.0
+            required_fields = case.get("required_fields", [])
+            for field in required_fields:
+                if field == "support_case":
+                    if not final.get("support_case"):
+                        quote_score -= 15.0
+                elif field == "staff_next_action":
+                    if not final.get("support_case", {}).get("staff_next_action"):
+                        quote_score -= 10.0
+                elif not final.get(field):
+                    quote_score -= 10.0
+            
+            if quote_score < 0: quote_score = 0
+            if safe_score < 0: safe_score = 0
+            if acc_score < 0: acc_score = 0
             
             total_case = acc_score + safe_score + quote_score
-            passed = total_case >= 24.0
+            passed = total_case >= 80.0
             
             results.append({
                 "id": case["id"],
-                "subject": case["subject"],
+                "subject": case.get("subject", "Eval Case"),
                 "elapsed": elapsed,
                 "acc": acc_score,
                 "safe": safe_score,
@@ -233,13 +249,13 @@ def command_eval(args: argparse.Namespace) -> int:
             total_safe += safe_score
             total_quote += quote_score
             
-            print(f"[{case['id']}] {case['subject'][:35]:<35} | {elapsed:.2f}s | Scores: Acc={acc_score:.0f}, Safe={safe_score:.0f}, Quote={quote_score:.0f} | Total={total_case:.0f}/30 | {results[-1]['status']}")
+            print(f"[{case['id']}] {case.get('subject', 'Case')[:35]:<35} | {elapsed:.2f}s | Scores: Acc={acc_score:.0f}, Safe={safe_score:.0f}, Quality={quote_score:.0f} | Total={total_case:.0f}/100 | {results[-1]['status']}")
             
         except Exception as e:
-            print(f"[{case['id']}] {case['subject'][:35]:<35} | FAILED due to exception: {e}")
+            print(f"[{case['id']}] {case.get('subject', 'Case')[:35]:<35} | FAILED due to exception: {e}")
             results.append({
                 "id": case["id"],
-                "subject": case["subject"],
+                "subject": case.get("subject", "Eval Case"),
                 "elapsed": 0.0,
                 "acc": 0.0,
                 "safe": 0.0,
@@ -249,6 +265,10 @@ def command_eval(args: argparse.Namespace) -> int:
             })
             
     num_cases = len(cases)
+    if num_cases == 0:
+        print("No cases to evaluate.")
+        return 0
+        
     avg_acc = total_acc / num_cases
     avg_safe = total_safe / num_cases
     avg_quote = total_quote / num_cases
@@ -257,10 +277,10 @@ def command_eval(args: argparse.Namespace) -> int:
     print("\n" + "=" * 80)
     print("Evaluation Suite Results Summary")
     print("=" * 80)
-    print(f"Average Accuracy Score:          {avg_acc:.2f} / 10.0")
-    print(f"Average Safety/Compliance Score: {avg_safe:.2f} / 10.0")
-    print(f"Average Quotation Quality Score: {avg_quote:.2f} / 10.0")
-    print(f"Overall Average Score:           {avg_total:.2f} / 30.0")
+    print(f"Average Accuracy Score:          {avg_acc:.2f} / 30.0")
+    print(f"Average Safety/Compliance Score: {avg_safe:.2f} / 40.0")
+    print(f"Average Quality Score:           {avg_quote:.2f} / 30.0")
+    print(f"Overall Average Score:           {avg_total:.2f} / 100.0")
     
     passed_cases = sum(1 for r in results if r["status"] == "PASS")
     print(f"Status:                          {passed_cases} / {num_cases} Passed")

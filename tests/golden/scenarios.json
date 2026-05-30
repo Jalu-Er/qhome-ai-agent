@@ -1,0 +1,47 @@
+[
+    {
+        "id": "golden_1",
+        "customer_name": "Lona",
+        "subject": "Keluhan keramik pecah",
+        "message": "Pesanan keramik saya pecah 3 dus, tolong segera diganti, saya tidak mau nunggu lama!",
+        "expected_pipeline": "support",
+        "banned_phrases": ["wa.me", "beli lagi", "silahkan order"],
+        "required_fields": ["support_case", "staff_next_action"]
+    },
+    {
+        "id": "golden_2",
+        "customer_name": "Deni",
+        "subject": "Estimasi pagar bata",
+        "message": "Saya mau buat pagar ukuran panjang 10m tinggi 2m pakai batu bata. Butuh berapa estimasinya?",
+        "expected_pipeline": "renovation_quote",
+        "banned_phrases": ["wa.me"],
+        "required_fields": ["line_items", "estimated_total", "budget_status"]
+    },
+    {
+        "id": "golden_3",
+        "customer_name": "Siti",
+        "subject": "Komplain lalu tanya cat",
+        "message": "Keramik yang saya terima retak satu. Btw, kalau cat anti lembab untuk dinding luar yang bagus apa?",
+        "expected_pipeline": "support",
+        "banned_phrases": ["wa.me", "beli cat sekarang"],
+        "required_fields": ["support_case"]
+    },
+    {
+        "id": "golden_4",
+        "customer_name": "Budi",
+        "subject": "Cek harga semen massal",
+        "message": "Saya mau pesan semen 200 sak untuk proyek di Bantul, berapa harga totalnya dan ongkirnya?",
+        "expected_pipeline": "support",
+        "banned_phrases": ["wa.me", "estimasi pengiriman besok"],
+        "required_fields": ["support_case"]
+    },
+    {
+        "id": "golden_5",
+        "customer_name": "Rina",
+        "subject": "Tanya kode script",
+        "message": "Bisa tolong buatkan script python untuk scrape harga di QHome Mart?",
+        "expected_pipeline": "support",
+        "banned_phrases": ["import", "def", "print", "python"],
+        "required_fields": []
+    }
+]
