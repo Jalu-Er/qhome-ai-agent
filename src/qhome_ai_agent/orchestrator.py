@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import re
+import time
 from pathlib import Path
 from uuid import uuid4
 from datetime import UTC, datetime
@@ -268,20 +269,23 @@ def run_workflow(
     # Initialize the real-time agent trace list
     trace_steps = []
 
+    # Reset live trace buffer for this new run (prevents cross-run deduplication)
+    if session_store and session_id:
+        if hasattr(session_store, "start_run"):
+            session_store.start_run(session_id, actual_run_id)
+
     # Run formal triage agent using LLM (or mock model)
     triage_payload = {"ticket": ticket}
-    triage_output = TRIAGE_ROUTER_AGENT.run(model, state, additional_payload=triage_payload)
-    
-    # Normalize output to handle live LLM variant outputs robustly
-    triage_output = normalize_triage_output(triage_output)
+    triage_raw, triage_dur = timed_agent_run(TRIAGE_ROUTER_AGENT, model, state, triage_payload)
+    triage_output = normalize_triage_output(triage_raw)
     triage_output = apply_scope_guard(ticket, triage_output)
     triage_output = apply_latest_message_routing(ticket, triage_output)
-    
+
     state.add_step(TRIAGE_ROUTER_AGENT.name, triage_output)
-    
+
     # Save step to SQLite trace_repo
     trace_repo.add_step(actual_run_id, TRIAGE_ROUTER_AGENT.name, triage_payload, triage_output)
-    
+
     # Log step to file
     append_jsonl(
         run_dir / "interactions.jsonl",
@@ -289,6 +293,8 @@ def run_workflow(
             "run_id": actual_run_id,
             "agent": TRIAGE_ROUTER_AGENT.name,
             "display_name": TRIAGE_ROUTER_AGENT.display_name,
+            "agent_type": TRIAGE_ROUTER_AGENT.agent_type,
+            "duration_ms": triage_dur,
             "output": triage_output,
         },
     )
@@ -300,7 +306,9 @@ def run_workflow(
 
     router_step = {
         "agent": TRIAGE_ROUTER_AGENT.display_name,
+        "agent_type": TRIAGE_ROUTER_AGENT.agent_type,
         "timestamp": datetime.now(UTC).isoformat(),
+        "duration_ms": triage_dur,
         "output": triage_output,
     }
     trace_steps.append(router_step)
@@ -340,6 +348,33 @@ def run_workflow(
         qte_repo=qte_repo,
     )
 
+def normalize_support_case(final_output: dict, ticket: dict, session_state: dict) -> dict:
+    final_resp = final_output.get("final", {})
+    support_case = final_resp.get("support_case") or {}
+    if not support_case:
+        return final_output
+        
+    wa_in_ticket = ticket.get("customer_whatsapp", "") or ""
+    has_wa = bool(wa_in_ticket.strip())
+    
+    data_missing = support_case.get("data_missing", [])
+    if isinstance(data_missing, str):
+        data_missing = [data_missing]
+    
+    missing_str = " ".join(data_missing).lower()
+    phone_keywords = ["phone", "phone number", "nomor telepon", "whatsapp", "wa", "nomor wa", "kontak", "hp"]
+    needs_contact = any(k in missing_str for k in phone_keywords)
+    
+    if not has_wa and needs_contact:
+        support_case["staff_next_action"] = "Minta nomor WhatsApp/telepon pelanggan melalui chat terlebih dahulu, lalu teruskan ke Customer Support Team."
+        support_case["sla_suggestion"] = "Minta kontak pelanggan segera; tindak lanjut staff setelah kontak tersedia."
+        if session_state:
+            session_state["pending_action"] = "waiting_for_whatsapp"
+            
+    final_resp["support_case"] = support_case
+    final_output["final"] = final_resp
+    return final_output
+
 
 def _run_support_pipeline(
     model: ChatModel,
@@ -353,23 +388,27 @@ def _run_support_pipeline(
     trace_repo: AgentTraceRepository,
 ) -> dict:
     for agent in AGENTS:
-        result = agent.run(model, state)
+        result, dur = timed_agent_run(agent, model, state)
         state.add_step(agent.name, result)
         trace_repo.add_step(actual_run_id, agent.name, {"ticket": ticket}, result)
-        
+
         append_jsonl(
             run_dir / "interactions.jsonl",
             {
                 "run_id": actual_run_id,
                 "agent": agent.name,
                 "display_name": agent.display_name,
+                "agent_type": agent.agent_type,
+                "duration_ms": dur,
                 "output": result,
             },
         )
-        
+
         step_data = {
             "agent": agent.display_name,
+            "agent_type": agent.agent_type,
             "timestamp": datetime.now(UTC).isoformat(),
+            "duration_ms": dur,
             "output": result,
         }
         trace_steps.append(step_data)
@@ -377,6 +416,9 @@ def _run_support_pipeline(
             session_store.update_trace(session_id, step_data)
 
     final_output = state.final_output()
+    session_state = ticket.get("session_state") or {}
+    final_output = normalize_support_case(final_output, ticket, session_state)
+    
     final_output["trace"] = trace_steps
     write_json(run_dir / "final_output.json", final_output)
     write_markdown_report(run_dir / "report.md", final_output)
@@ -405,15 +447,17 @@ def _run_renovation_pipeline(
     # 1. Requirement Intake Agent
     agent = RENOVATION_AGENTS["requirement_intake"]
     input_payload = {"ticket": ticket}
-    result_intake = agent.run(model, state, additional_payload=input_payload)
+    result_intake, dur = timed_agent_run(agent, model, state, input_payload)
     state.add_step(agent.name, result_intake)
     trace_repo.add_step(actual_run_id, agent.name, input_payload, result_intake)
     log_step(run_dir, actual_run_id, agent, result_intake)
-    
+
     # Log requirement_intake to real-time session trace
     step_data = {
         "agent": agent.display_name,
+        "agent_type": agent.agent_type,
         "timestamp": datetime.now(UTC).isoformat(),
+        "duration_ms": dur,
         "output": result_intake,
     }
     trace_steps.append(step_data)
@@ -478,15 +522,17 @@ def _run_renovation_pipeline(
     ]
     
     input_payload = {"catalog_products": catalog_context}
-    result_retrieval = agent.run(model, state, additional_payload=input_payload)
+    result_retrieval, dur = timed_agent_run(agent, model, state, input_payload)
     state.add_step(agent.name, result_retrieval)
     trace_repo.add_step(actual_run_id, agent.name, input_payload, result_retrieval)
     log_step(run_dir, actual_run_id, agent, result_retrieval)
-    
+
     # Log product_retrieval to real-time session trace
     step_data = {
         "agent": agent.display_name,
+        "agent_type": agent.agent_type,
         "timestamp": datetime.now(UTC).isoformat(),
+        "duration_ms": dur,
         "output": result_retrieval,
     }
     trace_steps.append(step_data)
@@ -556,15 +602,17 @@ def _run_renovation_pipeline(
             })
     
     input_payload = {"inventory_snapshots": inventory_context}
-    result_inventory = agent.run(model, state, additional_payload=input_payload)
+    result_inventory, dur = timed_agent_run(agent, model, state, input_payload)
     state.add_step(agent.name, result_inventory)
     trace_repo.add_step(actual_run_id, agent.name, input_payload, result_inventory)
     log_step(run_dir, actual_run_id, agent, result_inventory)
-    
+
     # Log inventory_snapshot to real-time session trace
     step_data = {
         "agent": agent.display_name,
+        "agent_type": agent.agent_type,
         "timestamp": datetime.now(UTC).isoformat(),
+        "duration_ms": dur,
         "output": result_inventory,
     }
     trace_steps.append(step_data)
@@ -615,15 +663,17 @@ def _run_renovation_pipeline(
         })
     
     input_payload = {"draft_material_estimations": draft_estimations, "area_m2": area_val}
-    result_estimator = agent.run(model, state, additional_payload=input_payload)
+    result_estimator, dur = timed_agent_run(agent, model, state, input_payload)
     state.add_step(agent.name, result_estimator)
     trace_repo.add_step(actual_run_id, agent.name, input_payload, result_estimator)
     log_step(run_dir, actual_run_id, agent, result_estimator)
-    
+
     # Log quantity_estimator to real-time session trace
     step_data = {
         "agent": agent.display_name,
+        "agent_type": agent.agent_type,
         "timestamp": datetime.now(UTC).isoformat(),
+        "duration_ms": dur,
         "output": result_estimator,
     }
     trace_steps.append(step_data)
@@ -677,15 +727,17 @@ def _run_renovation_pipeline(
             "budget_status": budget_status,
         }
     }
-    result_quote = agent.run(model, state, additional_payload=input_payload)
+    result_quote, dur = timed_agent_run(agent, model, state, input_payload)
     state.add_step(agent.name, result_quote)
     trace_repo.add_step(actual_run_id, agent.name, input_payload, result_quote)
     log_step(run_dir, actual_run_id, agent, result_quote)
-    
+
     # Log quote_builder to real-time session trace
     step_data = {
         "agent": agent.display_name,
+        "agent_type": agent.agent_type,
         "timestamp": datetime.now(UTC).isoformat(),
+        "duration_ms": dur,
         "output": result_quote,
     }
     trace_steps.append(step_data)
@@ -709,15 +761,17 @@ def _run_renovation_pipeline(
         "missing_information": result_intake.get("missing_information", []),
         "policies": db_policies,
     }
-    result_verifier = agent.run(model, state, additional_payload=input_payload)
+    result_verifier, dur = timed_agent_run(agent, model, state, input_payload)
     state.add_step(agent.name, result_verifier)
     trace_repo.add_step(actual_run_id, agent.name, input_payload, result_verifier)
     log_step(run_dir, actual_run_id, agent, result_verifier)
-    
+
     # Log risk_policy_verifier to real-time session trace
     step_data = {
         "agent": agent.display_name,
+        "agent_type": agent.agent_type,
         "timestamp": datetime.now(UTC).isoformat(),
+        "duration_ms": dur,
         "output": result_verifier,
     }
     trace_steps.append(step_data)
@@ -739,17 +793,19 @@ def _run_renovation_pipeline(
             "instructions": "REVISE your quotation notes and warnings to address the Critic's policy violations strictly. Do not make claims of real-time stock or final prices. Ask for WhatsApp actively."
         }
         # Run Quote Builder second pass
-        revised_result = agent_quote.run(model, state, additional_payload=revision_input)
+        revised_result, rev_dur = timed_agent_run(agent_quote, model, state, revision_input)
         state.steps[-2].output = revised_result  # Replace previous quote output in state trace
         result_quote = revised_result
         # Log revision step to DB trace
         trace_repo.add_step(actual_run_id, "quote_builder_revision", revision_input, revised_result)
         result_verifier["revision_applied"] = True
-    
+
         # Append to live trace for staff dashboard visibility
         revision_step = {
             "agent": "Quote Builder (Revisi)",
+            "agent_type": "Quotation Builder Agent",
             "timestamp": datetime.now(UTC).isoformat(),
+            "duration_ms": rev_dur,
             "output": revised_result,
         }
         trace_steps.append(revision_step)
@@ -784,15 +840,17 @@ def _run_renovation_pipeline(
         "final_quote": result_quote,
         "verifier_audit": result_verifier,
     }
-    result_handoff = agent.run(model, state, additional_payload=input_payload)
+    result_handoff, dur = timed_agent_run(agent, model, state, input_payload)
     state.add_step(agent.name, result_handoff)
     trace_repo.add_step(actual_run_id, agent.name, input_payload, result_handoff)
     log_step(run_dir, actual_run_id, agent, result_handoff)
-    
+
     # Log staff_handoff_response to real-time session trace
     step_data = {
         "agent": agent.display_name,
+        "agent_type": agent.agent_type,
         "timestamp": datetime.now(UTC).isoformat(),
+        "duration_ms": dur,
         "output": result_handoff,
     }
     trace_steps.append(step_data)
@@ -818,13 +876,23 @@ def _run_renovation_pipeline(
     write_markdown_report(run_dir / "report.md", final_output)
     return final_output
 
-def log_step(run_dir: Path, run_id: str, agent: Agent, output: dict) -> None:
+
+def timed_agent_run(agent: Any, model: Any, state: Any, additional_payload: dict | None = None) -> tuple[dict, int]:
+    """Run an agent and return (result, duration_ms). Pure wrapper — does not alter output."""
+    t0 = time.monotonic()
+    result = agent.run(model, state, additional_payload=additional_payload)
+    duration_ms = int((time.monotonic() - t0) * 1000)
+    return result, duration_ms
+
+
+def log_step(run_dir: Path, run_id: str, agent: Any, output: dict) -> None:
     append_jsonl(
         run_dir / "interactions.jsonl",
         {
             "run_id": run_id,
             "agent": agent.name,
             "display_name": agent.display_name,
+            "agent_type": getattr(agent, "agent_type", "LLM Reasoning Agent"),
             "output": output,
         },
     )
@@ -903,7 +971,9 @@ def build_final_output(
         "trace": [
             {
                 "agent": step.get("agent") if isinstance(step, dict) else getattr(step, "agent", ""),
+                "agent_type": step.get("agent_type") if isinstance(step, dict) else getattr(step, "agent_type", None),
                 "timestamp": step.get("timestamp") if isinstance(step, dict) else getattr(step, "timestamp", ""),
+                "duration_ms": step.get("duration_ms") if isinstance(step, dict) else getattr(step, "duration_ms", None),
                 "output": step.get("output") if isinstance(step, dict) else getattr(step, "output", {}),
             }
             for step in steps

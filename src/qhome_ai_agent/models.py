@@ -14,6 +14,9 @@ class AgentStep:
     agent: str
     output: dict[str, Any]
     timestamp: str = field(default_factory=utc_now)
+    duration_ms: int | None = None
+    agent_type: str | None = None
+    status: str = "ok"
 
 
 @dataclass
@@ -48,6 +51,9 @@ class RunState:
                 {
                     "agent": step.agent,
                     "timestamp": step.timestamp,
+                    "duration_ms": step.duration_ms,
+                    "agent_type": step.agent_type,
+                    "status": step.status,
                     "output": step.output,
                 }
                 for step in self.steps

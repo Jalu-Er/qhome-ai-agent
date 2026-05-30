@@ -23,7 +23,7 @@ class SessionStore:
         self._lock = threading.Lock()
         self._sessions: dict[str, dict] = {}
 
-    def update(self, session_id: str, customer_name: str, message: str, result: dict) -> None:
+    def update(self, session_id: str, customer_name: str, message: str, result: dict, mode: str = "mock") -> None:
         with self._lock:
             now = datetime.now(UTC).isoformat()
             if session_id not in self._sessions:
@@ -35,6 +35,7 @@ class SessionStore:
                     "triage": None,
                     "staff_status": "new",
                     "staff_notes": "",
+                    "mode": mode,
                     "created_at": now,
                     "updated_at": now,
                     "state": {
@@ -50,6 +51,7 @@ class SessionStore:
                 }
             session = self._sessions[session_id]
             session["customer_name"] = customer_name
+            session["mode"] = mode
             session["history"].append({"role": "customer", "content": message})
             reply = (result.get("final") or {}).get("customer_reply", "")
             if reply:
@@ -129,6 +131,31 @@ class SessionStore:
 
             session["updated_at"] = now
 
+    def start_run(self, session_id: str, run_id: str) -> None:
+        """Reset live trace for a new run. Called by orchestrator before agents start."""
+        with self._lock:
+            now = datetime.now(UTC).isoformat()
+            # Create session skeleton if it doesn't exist yet (run starts before update() is called)
+            if session_id not in self._sessions:
+                self._sessions[session_id] = {
+                    "session_id": session_id,
+                    "customer_name": "Pelanggan",
+                    "customer_whatsapp": "",
+                    "history": [],
+                    "triage": None,
+                    "staff_status": "new",
+                    "staff_notes": "",
+                    "mode": "mock",
+                    "created_at": now,
+                    "updated_at": now,
+                }
+            session = self._sessions[session_id]
+            if session.get("triage") is None:
+                session["triage"] = {}
+            # Clear old trace and tag current run so dedup is scoped per-run
+            session["triage"]["trace"] = []
+            session["triage"]["_current_run_id"] = run_id
+
     def update_trace(self, session_id: str, step: dict) -> None:
         with self._lock:
             now = datetime.now(UTC).isoformat()
@@ -141,6 +168,7 @@ class SessionStore:
                     "triage": None,
                     "staff_status": "new",
                     "staff_notes": "",
+                    "mode": "mock",
                     "created_at": now,
                     "updated_at": now,
                 }
@@ -149,11 +177,15 @@ class SessionStore:
                 session["triage"] = {"trace": []}
             if "trace" not in session["triage"]:
                 session["triage"]["trace"] = []
-            
-            # Check if this step is already added
-            exists = any(s.get("agent") == step.get("agent") for s in session["triage"]["trace"])
-            if not exists:
-                session["triage"]["trace"].append(step)
+
+            # Dedup within the SAME run only (agent names in current run should be unique)
+            current_run_id = session["triage"].get("_current_run_id")
+            existing_agents = {s.get("agent") for s in session["triage"]["trace"]
+                               if s.get("_run_id") == current_run_id}
+            if step.get("agent") not in existing_agents:
+                step_with_run = dict(step)
+                step_with_run["_run_id"] = current_run_id
+                session["triage"]["trace"].append(step_with_run)
                 session["updated_at"] = now
 
     def get(self, session_id: str) -> dict | None:
@@ -207,6 +239,7 @@ class SessionStore:
                     "escalation_team": final.get("escalation_team"),
                     "ai_status": status,
                     "staff_status": session.get("staff_status", "new"),
+                    "mode": session.get("mode", "unknown"),
                     "last_message": last_msg[:120],
                     "message_count": len(session["history"]),
                     "created_at": session["created_at"],
@@ -275,8 +308,9 @@ class WebApp:
                 session_id = str(payload.get("session_id", ""))
                 customer_name = str(payload.get("customer_name", "Pelanggan")).strip() or "Pelanggan"
                 message = str(payload.get("message", "")).strip()
+                mode = str(payload.get("mode", "mock")).strip()
                 if session_id and message:
-                    app.sessions.update(session_id, customer_name, message, result)
+                    app.sessions.update(session_id, customer_name, message, result, mode=mode)
                 self._send_json(result)
 
             def _handle_session_update(self) -> None:

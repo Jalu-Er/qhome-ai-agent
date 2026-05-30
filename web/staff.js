@@ -11,9 +11,12 @@ const staffNotesEl = document.getElementById("staffNotes");
 let sessions = [];
 let selectedId = null;
 let activeFilter = "all";
+let activeModeFilter = "all";
 
 let lastRenderedRunId = null;
 let lastRenderedMsgCount = 0;
+let lastRenderedTraceLen = -1;
+let lastRenderedTraceSignature = "";
 
 /* Filter buttons */
 document.querySelectorAll(".filter-btn").forEach((btn) => {
@@ -48,6 +51,15 @@ copyBtn.addEventListener("click", async () => {
   setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
 });
 
+/* Mode filter */
+const modeFilter = document.getElementById("modeFilter");
+if (modeFilter) {
+  modeFilter.addEventListener("change", () => {
+    activeModeFilter = modeFilter.value || "all";
+    renderSidebar();
+  });
+}
+
 /* Poll sessions every 3s */
 loadSessions();
 setInterval(loadSessions, 3000);
@@ -56,7 +68,6 @@ async function loadSessions() {
   try {
     const res = await fetch("/api/sessions");
     sessions = await res.json();
-    ticketCount.textContent = sessions.length + " ticket" + (sessions.length !== 1 ? "s" : "");
     renderSidebar();
     /* Only refresh detail if staff is not actively editing notes */
     if (selectedId && document.activeElement !== staffNotesEl) {
@@ -84,8 +95,9 @@ async function updateSession(sid, data) {
 function renderSidebar() {
   ticketList.innerHTML = "";
   const filtered = filterSessions(sessions);
+  ticketCount.textContent = filtered.length + " ticket" + (filtered.length !== 1 ? "s" : "");
   if (!filtered.length) {
-    ticketList.innerHTML = '<div class="sidebar-empty">Belum ada ticket.</div>';
+    ticketList.innerHTML = '<div class="sidebar-empty">Belum ada ticket untuk filter ini.</div>';
     return;
   }
   filtered.forEach((s) => {
@@ -115,13 +127,31 @@ function renderSidebar() {
 
     const meta = document.createElement("div");
     meta.className = "ticket-item-meta";
+
+    const modeBadge = document.createElement("span");
+    modeBadge.className = "mode-badge";
+    modeBadge.style.fontSize = "10px";
+    modeBadge.style.padding = "2px 4px";
+    modeBadge.style.borderRadius = "4px";
+    modeBadge.style.marginRight = "6px";
+    modeBadge.style.fontWeight = "bold";
+    if (s.mode === "live") {
+      modeBadge.textContent = "LIVE";
+      modeBadge.style.background = "#ffebee";
+      modeBadge.style.color = "#d32f2f";
+    } else {
+      modeBadge.textContent = "TEST";
+      modeBadge.style.background = "#e3f2fd";
+      modeBadge.style.color = "#1976d2";
+    }
+
     const wfBadge = document.createElement("span");
     wfBadge.className = "ticket-status-dot " + staffStatusDot(s.staff_status);
     wfBadge.textContent = staffLabel(s.staff_status);
     const time = document.createElement("span");
     time.className = "ticket-time";
     time.textContent = formatTime(s.updated_at);
-    meta.append(wfBadge, time);
+    meta.append(modeBadge, wfBadge, time);
 
     item.append(top, preview, meta);
     ticketList.append(item);
@@ -129,13 +159,19 @@ function renderSidebar() {
 }
 
 function filterSessions(list) {
-  if (activeFilter === "all") return list;
-  if (activeFilter === "new") return list.filter((s) => s.staff_status === "new");
-  if (activeFilter === "in_progress") return list.filter((s) => s.staff_status === "in_progress");
-  if (activeFilter === "done") return list.filter((s) => s.staff_status === "done");
-  if (activeFilter === "needs_staff") return list.filter((s) => s.ai_status === "needs_staff");
-  if (activeFilter === "waiting_info") return list.filter((s) => s.ai_status === "waiting_info");
-  return list;
+  let result = list;
+
+  if (activeFilter === "new") result = result.filter((s) => s.staff_status === "new");
+  else if (activeFilter === "in_progress") result = result.filter((s) => s.staff_status === "in_progress");
+  else if (activeFilter === "done") result = result.filter((s) => s.staff_status === "done");
+  else if (activeFilter === "needs_staff") result = result.filter((s) => s.ai_status === "needs_staff");
+  else if (activeFilter === "waiting_info") result = result.filter((s) => s.ai_status === "waiting_info");
+
+  if (activeModeFilter !== "all") {
+    result = result.filter((s) => (s.mode || "unknown") === activeModeFilter);
+  }
+
+  return result;
 }
 
 async function loadDetail(sid) {
@@ -157,14 +193,26 @@ function renderDetail(session) {
   const intake = outputs.requirement_intake || {};
   const prioData = outputs.priority_escalation || {};
   const trace = triage.trace || [];
+  const trOutput = outputs.triage_router || {};
 
-  const runId = triage.run_id || null;
+  const runId = triage.run_id || triage._current_run_id || null;
   const msgCount = session.history.length;
-  const isSameRun = (runId === lastRenderedRunId && msgCount === lastRenderedMsgCount);
+  const traceLen = Array.isArray(trace) ? trace.length : 0;
+  const traceSignature = Array.isArray(trace)
+    ? trace.map((s) => `${s.agent || ""}:${s.timestamp || ""}:${s.duration_ms || ""}`).join("|")
+    : "";
+
+  const isSameTrace =
+    runId === lastRenderedRunId &&
+    msgCount === lastRenderedMsgCount &&
+    traceLen === lastRenderedTraceLen &&
+    traceSignature === lastRenderedTraceSignature;
   
-  if (!isSameRun) {
+  if (!isSameTrace) {
     lastRenderedRunId = runId;
     lastRenderedMsgCount = msgCount;
+    lastRenderedTraceLen = traceLen;
+    lastRenderedTraceSignature = traceSignature;
   }
 
   /* Header & WhatsApp Contact */
@@ -226,6 +274,34 @@ function renderDetail(session) {
 
   /* Customer Reply */
   document.getElementById("dCustomerReply").textContent = final.customer_reply || "-";
+
+  /* Support Case Packet (Support Pipeline only) */
+  const supportCaseSection = document.getElementById("supportCaseSection");
+  const supportCase = final.support_case || null;
+  const isRenovation = (trOutput && trOutput.selected_pipeline === "renovation_quote");
+  if (supportCase && !isRenovation) {
+    supportCaseSection.hidden = false;
+    setText("scCategory", supportCase.complaint_category || "-");
+    const scPrioEl = document.getElementById("scPriority");
+    scPrioEl.textContent = fmt(supportCase.priority) || "-";
+    scPrioEl.className = "card-value " + priorityClass(supportCase.priority);
+    const scEscEl = document.getElementById("scEscalate");
+    if (supportCase.escalation_required) {
+      scEscEl.textContent = "⚠️ Ya — Perlu Eskalasi";
+      scEscEl.style.color = "var(--danger)";
+    } else {
+      scEscEl.textContent = "✅ Tidak";
+      scEscEl.style.color = "var(--ok)";
+    }
+    setText("scTeam", fmt(supportCase.escalation_team));
+    setText("scSla", supportCase.sla_suggestion || "-");
+    setText("scNextAction", supportCase.staff_next_action || "-");
+    renderPills(document.getElementById("scDataAvail"), supportCase.data_available || []);
+    renderPills(document.getElementById("scDataMissing"), supportCase.data_missing || []);
+    setText("scRisk", supportCase.risk_note || "-");
+  } else {
+    supportCaseSection.hidden = true;
+  }
 
   /* Render Quote if it exists */
   const quoteSection = document.getElementById("quoteSection");
@@ -295,8 +371,7 @@ function renderDetail(session) {
 
   /* Render Triage Router if it exists */
   const trSection = document.getElementById("triageRouterSection");
-  const trOutput = outputs.triage_router;
-  if (trOutput) {
+  if (trOutput && Object.keys(trOutput).length > 0) {
     trSection.hidden = false;
     document.getElementById("trPrimaryIntent").textContent = fmt(trOutput.primary_intent);
     document.getElementById("trSelectedPipeline").textContent = fmt(trOutput.selected_pipeline);
@@ -354,7 +429,7 @@ function renderDetail(session) {
   document.getElementById("dConversation").textContent = session.history.map((m) => (m.role === "customer" ? session.customer_name : "QHome AI") + ": " + m.content).join("\n\n") || "-";
 
   /* Trace */
-  if (!isSameRun) {
+  if (!isSameTrace) {
     if (window.simTimeoutId) {
       clearTimeout(window.simTimeoutId);
       window.simTimeoutId = null;
@@ -375,8 +450,8 @@ function renderDetail(session) {
         renderStaticTrace(trace);
       };
 
-      // Autoplay the step-by-step trace simulation so the staff can watch the agents' discussion live!
-      playSimulation(trace);
+      // Default to static trace display for staff overview. Live simulation can be triggered manually.
+      renderStaticTrace(trace);
     } else {
       simBtn.style.display = "none";
       instantBtn.style.display = "none";
@@ -496,22 +571,119 @@ function formatListItem(value) {
   return JSON.stringify(value);
 }
 
-// Format agent trace outputs beautifully
+// Format agent trace outputs with rich artifact summaries
+function getRiskClass(val) {
+  const v = (val || "").toLowerCase();
+  if (v === "high" || v === "tinggi") return "priority-high";
+  if (v === "medium" || v === "sedang") return "priority-medium";
+  if (v === "low" || v === "rendah") return "priority-low";
+  return "";
+}
+
+function buildArtifact(fields, notes) {
+  const rows = fields.map(f => {
+    const cls = f.colored ? getRiskClass(f.value) : "";
+    return `<div class="artifact-row">
+      <span class="artifact-label">${f.label}</span>
+      <span class="artifact-value ${cls}">${f.value || "-"}</span>
+    </div>`;
+  }).join("");
+  const notesHtml = notes
+    ? `<div class="artifact-notes">${String(notes).substring(0, 180)}${String(notes).length > 180 ? "…" : ""}</div>`
+    : "";
+  return `<div class="artifact-card">${rows}${notesHtml}</div>`;
+}
+
 function formatTraceBody(step, body) {
   const output = step.output || {};
-  if (step.agent === "Hybrid Router & Orchestrator" || output.selected_pipeline) {
+  const agentName = step.agent || "";
+  const safeArr = (v) => (!v ? [] : (Array.isArray(v) ? v : [v]));
+
+  if (agentName.includes("Router") || agentName.includes("Orchestrator") || output.selected_pipeline) {
     body.innerHTML = `
       <div class="trace-triage-summary" style="display:flex; flex-direction:column; gap:10px; font-size:13px; line-height:1.4;">
-        <div><strong style="color:var(--ok);">Pipeline:</strong> <span style="font-weight:600; text-transform: uppercase;">${fmt(output.selected_pipeline)}</span></div>
+        <div><strong style="color:var(--ok);">Pipeline:</strong> <span style="font-weight:600; text-transform:uppercase;">${fmt(output.selected_pipeline)}</span></div>
         <div><strong style="color:var(--accent);">Primary Intent:</strong> <span>${fmt(output.primary_intent)}</span></div>
         <div><strong style="color:#ff9800;">Priority Rule:</strong> <span>${fmt(output.priority_rule || "standard_routing")}</span></div>
         <div><strong>Reason:</strong> <span style="color:var(--muted);">${output.routing_reason || "-"}</span></div>
-        <div style="background:rgba(255,82,82,0.06); padding:8px 12px; border-left:3px solid #ff5252; border-radius:3px; margin-top:5px;">
-          <strong style="color:#ff5252; display:block; margin-bottom:3px;">Staff Handoff Notes:</strong>
-          <span style="font-weight:500; color:#ffbaba;">${output.staff_handoff_notes || "-"}</span>
+        <div style="background:#fffbeb; border:1px solid #fde68a; padding:8px; border-radius:6px; margin-top:5px; color:#92400e;">
+          <strong style="color:#d97706; display:block; margin-bottom:3px;">Staff Handoff Notes:</strong>
+          ${output.staff_handoff_notes || "-"}
         </div>
       </div>
     `;
+  } else if (agentName.includes("Requirement Intake")) {
+    body.innerHTML = buildArtifact([
+      { label: "Project Type", value: fmt(output.project_type) },
+      { label: "Area", value: output.area_m2 != null ? output.area_m2 + " m²" : "-" },
+      { label: "Budget", value: output.budget ? "Rp " + Number(output.budget).toLocaleString("id-ID") : "-" },
+      { label: "Kategori", value: safeArr(output.categories_needed).join(", ") || "-" },
+      { label: "Info Kurang", value: safeArr(output.missing_information).join(", ") || "Lengkap ✅" },
+    ], output.reasoning);
+  } else if (agentName.includes("Product Retrieval")) {
+    const prods = safeArr(output.recommended_products).map(p => p.name || p.sku).join(", ");
+    body.innerHTML = buildArtifact([
+      { label: "Produk Ditemukan", value: safeArr(output.recommended_products).length + " item" },
+      { label: "Produk", value: prods || "-" },
+    ], output.reasoning);
+  } else if (agentName.includes("Inventory Snapshot") || agentName.includes("Fallback")) {
+    const alerts = safeArr(output.inventory_alerts);
+    body.innerHTML = buildArtifact([
+      { label: "Status Stok", value: output.stock_status_ok ? "✅ Cukup" : "⚠️ Ada Kendala" },
+      { label: "Alert", value: alerts.length ? alerts.join("; ") : "Tidak ada" },
+    ], output.reasoning);
+  } else if (agentName.includes("Quantity Estimator")) {
+    const ests = safeArr(output.estimations).map(e => `${e.name}: ${e.estimated_qty} ${e.unit}`).join(" | ");
+    body.innerHTML = buildArtifact([
+      { label: "Estimasi Material", value: ests || "-" },
+      { label: "Item Dihitung", value: safeArr(output.estimations).length + " item" },
+    ], output.reasoning);
+  } else if (agentName.includes("Quote Builder")) {
+    body.innerHTML = buildArtifact([
+      { label: "Quote Code", value: output.quote_code || "-" },
+      { label: "Total Estimasi", value: output.estimated_total ? "Rp " + Number(output.estimated_total).toLocaleString("id-ID") : "-" },
+      { label: "Budget Status", value: fmt(output.budget_status) || "-" },
+      { label: "Jumlah Item", value: safeArr(output.line_items).length + " produk" },
+    ], output.reasoning);
+  } else if (agentName.includes("Risk") || agentName.includes("Verifier") || agentName.includes("Critic")) {
+    body.innerHTML = buildArtifact([
+      { label: "Risk Level", value: fmt(output.risk_level) || "-", colored: true },
+      { label: "Issues", value: safeArr(output.issues_found).join(", ") || "Tidak ada" },
+      { label: "Revisi Diperlukan", value: output.revision_required ? "⚠️ Ya" : "✅ Tidak" },
+    ], output.criticism_debate_log || output.reasoning);
+  } else if (agentName.includes("Intent") || agentName.includes("Classifier")) {
+    body.innerHTML = buildArtifact([
+      { label: "Intent", value: fmt(output.intent) || "-" },
+      { label: "Category", value: fmt(output.category) || "-" },
+      { label: "Confidence", value: output.confidence != null ? (Number(output.confidence) * 100).toFixed(0) + "%" : "-" },
+      { label: "Info Kurang", value: safeArr(output.missing_information).join(", ") || "Lengkap ✅" },
+    ], output.reasoning);
+  } else if (agentName.includes("Knowledge")) {
+    body.innerHTML = buildArtifact([
+      { label: "Policy Matched", value: safeArr(output.matched_policy_ids).join(", ") || "-" },
+      { label: "Confidence", value: output.confidence || "-" },
+      { label: "Fakta Relevan", value: safeArr(output.relevant_facts).length + " item" },
+    ], output.reasoning);
+  } else if (agentName.includes("Solution") || agentName.includes("Planner")) {
+    const actions = safeArr(output.recommended_actions).slice(0, 2).join("; ");
+    body.innerHTML = buildArtifact([
+      { label: "Rencana Aksi", value: actions || "-" },
+      { label: "Policy Basis", value: output.policy_basis || "-" },
+    ], output.reasoning);
+  } else if (agentName.includes("Priority") || agentName.includes("Escalation")) {
+    body.innerHTML = buildArtifact([
+      { label: "Priority", value: fmt(output.priority) || "-", colored: true },
+      { label: "Eskalasi", value: output.escalate ? "⚠️ Ya" : "✅ Tidak" },
+      { label: "Tim", value: fmt(output.escalation_team) || "-" },
+      { label: "SLA", value: output.sla_recommendation || "-" },
+    ], output.business_risk || output.reasoning);
+  } else if (agentName.includes("QA") || agentName.includes("Final") || agentName.includes("Handoff") || agentName.includes("Response")) {
+    const replyPreview = (output.customer_reply || output.reply || "").substring(0, 120);
+    body.innerHTML = buildArtifact([
+      { label: "Reply Preview", value: replyPreview + (replyPreview.length >= 120 ? "…" : "") },
+      { label: "Eskalasi", value: (output.escalate || output.contact_required) ? "⚠️ Ya" : "✅ Tidak" },
+      { label: "Steps", value: safeArr(output.internal_next_steps).length + " tindakan" },
+    ], output.reasoning);
   } else {
     body.textContent = output.reasoning || JSON.stringify(output, null, 2);
   }
@@ -533,7 +705,9 @@ function renderStaticTrace(trace) {
     item.className = "trace-item";
     const header = document.createElement("div");
     header.className = "trace-agent-name";
-    header.innerHTML = '<span class="agent-dot" style="background:#25d366;"></span>' + fmt(step.agent);
+    const durText = step.duration_ms != null ? `<span class="trace-duration">${(step.duration_ms / 1000).toFixed(1)}s</span>` : "";
+    const typeText = step.agent_type ? `<span class="agent-type-label">${step.agent_type}</span>` : "";
+    header.innerHTML = `<span class="agent-dot" style="background:#25d366;"></span><div class="trace-agent-info"><strong>${fmt(step.agent)}</strong>${typeText}</div>${durText}`;
     const body = document.createElement("div");
     body.className = "trace-body";
     formatTraceBody(step, body);
@@ -563,13 +737,15 @@ function playSimulation(trace) {
     
     const step = trace[index];
     document.getElementById("dTraceCount").textContent = `Simulasi: Langkah ${index + 1} dari ${trace.length}...`;
-    
+
     // Add real step card
     const item = document.createElement("div");
     item.className = "trace-item";
     const header = document.createElement("div");
     header.className = "trace-agent-name";
-    header.innerHTML = '<span class="agent-dot" style="background:#25d366;"></span>' + fmt(step.agent);
+    const durText = step.duration_ms != null ? `<span class="trace-duration">${(step.duration_ms / 1000).toFixed(1)}s</span>` : "";
+    const typeText = step.agent_type ? `<span class="agent-type-label">${step.agent_type}</span>` : "";
+    header.innerHTML = `<span class="agent-dot" style="background:#25d366;"></span><div class="trace-agent-info"><strong>${fmt(step.agent)}</strong>${typeText}</div>${durText}`;
     const body = document.createElement("div");
     body.className = "trace-body";
     formatTraceBody(step, body);

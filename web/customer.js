@@ -51,13 +51,65 @@ async function send() {
   /* Hide samples after first message */
   samplesRow.hidden = true;
 
-  // Append premium visual typing indicator
+  // Smart loading sequences based on current pipeline context
+  const LOADING_SEQUENCES = {
+    generic: [
+      "Menganalisis pesan Anda…",
+      "Memilih jalur bantuan terbaik…",
+      "Mengecek data terkait…",
+      "Menyusun jawaban…",
+    ],
+    support: [
+      "Menganalisis keluhan Anda…",
+      "Mengecek kebijakan bantuan…",
+      "Menentukan prioritas penanganan…",
+      "Menyiapkan solusi terbaik…",
+      "Menyusun respons…",
+    ],
+    renovation_quote: [
+      "Menganalisis kebutuhan renovasi…",
+      "Mencari produk yang cocok di katalog…",
+      "Mengecek stok & ketersediaan…",
+      "Menghitung estimasi material…",
+      "Menyusun penawaran…",
+      "Memverifikasi kewajaran harga…",
+    ],
+  };
+
+  function getLoadingSequence() {
+    const pipeline = pipelineBadge && pipelineBadge.dataset && pipelineBadge.dataset.pipeline;
+    if (pipeline === "renovation_quote") return LOADING_SEQUENCES.renovation_quote;
+    if (pipeline === "support") return LOADING_SEQUENCES.support;
+    return LOADING_SEQUENCES.generic;
+  }
+
+  // Append smart animated typing indicator
   const typingIndicator = document.createElement("div");
   typingIndicator.className = "bubble assistant";
   typingIndicator.id = "typingIndicator";
-  typingIndicator.innerHTML = '<span class="bubble-name">QHome AI</span><div class="typing-dots"><span></span><span></span><span></span></div>';
+  typingIndicator.innerHTML = `
+    <span class="bubble-name">QHome AI</span>
+    <div class="loading-status-wrap">
+      <div class="typing-dots"><span></span><span></span><span></span></div>
+      <span id="loadingStatusText" class="loading-status-text">${getLoadingSequence()[0]}</span>
+    </div>
+  `;
   chatThread.appendChild(typingIndicator);
   chatThread.scrollTop = chatThread.scrollHeight;
+
+  // Rotate loading text every 2.2 seconds
+  const sequence = getLoadingSequence();
+  let loadingStep = 0;
+  const loadingInterval = setInterval(() => {
+    loadingStep = (loadingStep + 1) % sequence.length;
+    const el = document.getElementById("loadingStatusText");
+    if (el) {
+      el.style.animation = "none";
+      el.offsetHeight; // reflow to restart animation
+      el.style.animation = "";
+      el.textContent = sequence[loadingStep];
+    }
+  }, 2200);
 
   try {
     const res = await fetch("/api/run", {
@@ -81,6 +133,7 @@ async function send() {
   } catch (err) {
     history.push({ role: "assistant", content: "Maaf, terjadi gangguan: " + err.message });
   } finally {
+    clearInterval(loadingInterval);
     const indicator = document.getElementById("typingIndicator");
     if (indicator) indicator.remove();
     renderChat();
