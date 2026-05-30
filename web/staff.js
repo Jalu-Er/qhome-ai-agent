@@ -563,6 +563,7 @@ function buildArtifact(fields, notes) {
 function formatTraceBody(step, body) {
   const output = step.output || {};
   const agentName = step.agent || "";
+  const safeArr = (v) => (!v ? [] : (Array.isArray(v) ? v : [v]));
 
   if (agentName.includes("Router") || agentName.includes("Orchestrator") || output.selected_pipeline) {
     body.innerHTML = `
@@ -582,38 +583,38 @@ function formatTraceBody(step, body) {
       { label: "Project Type", value: fmt(output.project_type) },
       { label: "Area", value: output.area_m2 != null ? output.area_m2 + " m²" : "-" },
       { label: "Budget", value: output.budget ? "Rp " + Number(output.budget).toLocaleString("id-ID") : "-" },
-      { label: "Kategori", value: (output.categories_needed || []).join(", ") || "-" },
-      { label: "Info Kurang", value: (output.missing_information || []).join(", ") || "Lengkap ✅" },
+      { label: "Kategori", value: safeArr(output.categories_needed).join(", ") || "-" },
+      { label: "Info Kurang", value: safeArr(output.missing_information).join(", ") || "Lengkap ✅" },
     ], output.reasoning);
   } else if (agentName.includes("Product Retrieval")) {
-    const prods = (output.recommended_products || []).map(p => p.name || p.sku).join(", ");
+    const prods = safeArr(output.recommended_products).map(p => p.name || p.sku).join(", ");
     body.innerHTML = buildArtifact([
-      { label: "Produk Ditemukan", value: (output.recommended_products || []).length + " item" },
+      { label: "Produk Ditemukan", value: safeArr(output.recommended_products).length + " item" },
       { label: "Produk", value: prods || "-" },
     ], output.reasoning);
   } else if (agentName.includes("Inventory Snapshot") || agentName.includes("Fallback")) {
-    const alerts = output.inventory_alerts || [];
+    const alerts = safeArr(output.inventory_alerts);
     body.innerHTML = buildArtifact([
       { label: "Status Stok", value: output.stock_status_ok ? "✅ Cukup" : "⚠️ Ada Kendala" },
       { label: "Alert", value: alerts.length ? alerts.join("; ") : "Tidak ada" },
     ], output.reasoning);
   } else if (agentName.includes("Quantity Estimator")) {
-    const ests = (output.estimations || []).map(e => `${e.name}: ${e.estimated_qty} ${e.unit}`).join(" | ");
+    const ests = safeArr(output.estimations).map(e => `${e.name}: ${e.estimated_qty} ${e.unit}`).join(" | ");
     body.innerHTML = buildArtifact([
       { label: "Estimasi Material", value: ests || "-" },
-      { label: "Item Dihitung", value: (output.estimations || []).length + " item" },
+      { label: "Item Dihitung", value: safeArr(output.estimations).length + " item" },
     ], output.reasoning);
   } else if (agentName.includes("Quote Builder")) {
     body.innerHTML = buildArtifact([
       { label: "Quote Code", value: output.quote_code || "-" },
       { label: "Total Estimasi", value: output.estimated_total ? "Rp " + Number(output.estimated_total).toLocaleString("id-ID") : "-" },
       { label: "Budget Status", value: fmt(output.budget_status) || "-" },
-      { label: "Jumlah Item", value: (output.line_items || []).length + " produk" },
+      { label: "Jumlah Item", value: safeArr(output.line_items).length + " produk" },
     ], output.reasoning);
   } else if (agentName.includes("Risk") || agentName.includes("Verifier") || agentName.includes("Critic")) {
     body.innerHTML = buildArtifact([
       { label: "Risk Level", value: fmt(output.risk_level) || "-", colored: true },
-      { label: "Issues", value: (output.issues_found || []).join(", ") || "Tidak ada" },
+      { label: "Issues", value: safeArr(output.issues_found).join(", ") || "Tidak ada" },
       { label: "Revisi Diperlukan", value: output.revision_required ? "⚠️ Ya" : "✅ Tidak" },
     ], output.criticism_debate_log || output.reasoning);
   } else if (agentName.includes("Intent") || agentName.includes("Classifier")) {
@@ -621,16 +622,16 @@ function formatTraceBody(step, body) {
       { label: "Intent", value: fmt(output.intent) || "-" },
       { label: "Category", value: fmt(output.category) || "-" },
       { label: "Confidence", value: output.confidence != null ? (Number(output.confidence) * 100).toFixed(0) + "%" : "-" },
-      { label: "Info Kurang", value: (output.missing_information || []).join(", ") || "Lengkap ✅" },
+      { label: "Info Kurang", value: safeArr(output.missing_information).join(", ") || "Lengkap ✅" },
     ], output.reasoning);
   } else if (agentName.includes("Knowledge")) {
     body.innerHTML = buildArtifact([
-      { label: "Policy Matched", value: (output.matched_policy_ids || []).join(", ") || "-" },
+      { label: "Policy Matched", value: safeArr(output.matched_policy_ids).join(", ") || "-" },
       { label: "Confidence", value: output.confidence || "-" },
-      { label: "Fakta Relevan", value: (output.relevant_facts || []).length + " item" },
+      { label: "Fakta Relevan", value: safeArr(output.relevant_facts).length + " item" },
     ], output.reasoning);
   } else if (agentName.includes("Solution") || agentName.includes("Planner")) {
-    const actions = (output.recommended_actions || []).slice(0, 2).join("; ");
+    const actions = safeArr(output.recommended_actions).slice(0, 2).join("; ");
     body.innerHTML = buildArtifact([
       { label: "Rencana Aksi", value: actions || "-" },
       { label: "Policy Basis", value: output.policy_basis || "-" },
@@ -647,7 +648,7 @@ function formatTraceBody(step, body) {
     body.innerHTML = buildArtifact([
       { label: "Reply Preview", value: replyPreview + (replyPreview.length >= 120 ? "…" : "") },
       { label: "Eskalasi", value: (output.escalate || output.contact_required) ? "⚠️ Ya" : "✅ Tidak" },
-      { label: "Steps", value: (output.internal_next_steps || []).length + " tindakan" },
+      { label: "Steps", value: safeArr(output.internal_next_steps).length + " tindakan" },
     ], output.reasoning);
   } else {
     body.textContent = output.reasoning || JSON.stringify(output, null, 2);
