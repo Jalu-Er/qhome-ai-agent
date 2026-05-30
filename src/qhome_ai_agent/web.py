@@ -23,7 +23,7 @@ class SessionStore:
         self._lock = threading.Lock()
         self._sessions: dict[str, dict] = {}
 
-    def update(self, session_id: str, customer_name: str, message: str, result: dict) -> None:
+    def update(self, session_id: str, customer_name: str, message: str, result: dict, mode: str = "mock") -> None:
         with self._lock:
             now = datetime.now(UTC).isoformat()
             if session_id not in self._sessions:
@@ -35,6 +35,7 @@ class SessionStore:
                     "triage": None,
                     "staff_status": "new",
                     "staff_notes": "",
+                    "mode": mode,
                     "created_at": now,
                     "updated_at": now,
                     "state": {
@@ -50,6 +51,7 @@ class SessionStore:
                 }
             session = self._sessions[session_id]
             session["customer_name"] = customer_name
+            session["mode"] = mode
             session["history"].append({"role": "customer", "content": message})
             reply = (result.get("final") or {}).get("customer_reply", "")
             if reply:
@@ -143,6 +145,7 @@ class SessionStore:
                     "triage": None,
                     "staff_status": "new",
                     "staff_notes": "",
+                    "mode": "mock",
                     "created_at": now,
                     "updated_at": now,
                 }
@@ -165,6 +168,7 @@ class SessionStore:
                     "triage": None,
                     "staff_status": "new",
                     "staff_notes": "",
+                    "mode": "mock",
                     "created_at": now,
                     "updated_at": now,
                 }
@@ -235,6 +239,7 @@ class SessionStore:
                     "escalation_team": final.get("escalation_team"),
                     "ai_status": status,
                     "staff_status": session.get("staff_status", "new"),
+                    "mode": session.get("mode", "unknown"),
                     "last_message": last_msg[:120],
                     "message_count": len(session["history"]),
                     "created_at": session["created_at"],
@@ -303,8 +308,9 @@ class WebApp:
                 session_id = str(payload.get("session_id", ""))
                 customer_name = str(payload.get("customer_name", "Pelanggan")).strip() or "Pelanggan"
                 message = str(payload.get("message", "")).strip()
+                mode = str(payload.get("mode", "mock")).strip()
                 if session_id and message:
-                    app.sessions.update(session_id, customer_name, message, result)
+                    app.sessions.update(session_id, customer_name, message, result, mode=mode)
                 self._send_json(result)
 
             def _handle_session_update(self) -> None:

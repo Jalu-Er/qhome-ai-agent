@@ -11,6 +11,7 @@ const staffNotesEl = document.getElementById("staffNotes");
 let sessions = [];
 let selectedId = null;
 let activeFilter = "all";
+let activeModeFilter = "all";
 
 let lastRenderedRunId = null;
 let lastRenderedMsgCount = 0;
@@ -50,6 +51,15 @@ copyBtn.addEventListener("click", async () => {
   setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
 });
 
+/* Mode filter */
+const modeFilter = document.getElementById("modeFilter");
+if (modeFilter) {
+  modeFilter.addEventListener("change", () => {
+    activeModeFilter = modeFilter.value || "all";
+    renderSidebar();
+  });
+}
+
 /* Poll sessions every 3s */
 loadSessions();
 setInterval(loadSessions, 3000);
@@ -58,7 +68,6 @@ async function loadSessions() {
   try {
     const res = await fetch("/api/sessions");
     sessions = await res.json();
-    ticketCount.textContent = sessions.length + " ticket" + (sessions.length !== 1 ? "s" : "");
     renderSidebar();
     /* Only refresh detail if staff is not actively editing notes */
     if (selectedId && document.activeElement !== staffNotesEl) {
@@ -86,8 +95,9 @@ async function updateSession(sid, data) {
 function renderSidebar() {
   ticketList.innerHTML = "";
   const filtered = filterSessions(sessions);
+  ticketCount.textContent = filtered.length + " ticket" + (filtered.length !== 1 ? "s" : "");
   if (!filtered.length) {
-    ticketList.innerHTML = '<div class="sidebar-empty">Belum ada ticket.</div>';
+    ticketList.innerHTML = '<div class="sidebar-empty">Belum ada ticket untuk filter ini.</div>';
     return;
   }
   filtered.forEach((s) => {
@@ -117,13 +127,31 @@ function renderSidebar() {
 
     const meta = document.createElement("div");
     meta.className = "ticket-item-meta";
+
+    const modeBadge = document.createElement("span");
+    modeBadge.className = "mode-badge";
+    modeBadge.style.fontSize = "10px";
+    modeBadge.style.padding = "2px 4px";
+    modeBadge.style.borderRadius = "4px";
+    modeBadge.style.marginRight = "6px";
+    modeBadge.style.fontWeight = "bold";
+    if (s.mode === "live") {
+      modeBadge.textContent = "LIVE";
+      modeBadge.style.background = "#ffebee";
+      modeBadge.style.color = "#d32f2f";
+    } else {
+      modeBadge.textContent = "TEST";
+      modeBadge.style.background = "#e3f2fd";
+      modeBadge.style.color = "#1976d2";
+    }
+
     const wfBadge = document.createElement("span");
     wfBadge.className = "ticket-status-dot " + staffStatusDot(s.staff_status);
     wfBadge.textContent = staffLabel(s.staff_status);
     const time = document.createElement("span");
     time.className = "ticket-time";
     time.textContent = formatTime(s.updated_at);
-    meta.append(wfBadge, time);
+    meta.append(modeBadge, wfBadge, time);
 
     item.append(top, preview, meta);
     ticketList.append(item);
@@ -131,13 +159,19 @@ function renderSidebar() {
 }
 
 function filterSessions(list) {
-  if (activeFilter === "all") return list;
-  if (activeFilter === "new") return list.filter((s) => s.staff_status === "new");
-  if (activeFilter === "in_progress") return list.filter((s) => s.staff_status === "in_progress");
-  if (activeFilter === "done") return list.filter((s) => s.staff_status === "done");
-  if (activeFilter === "needs_staff") return list.filter((s) => s.ai_status === "needs_staff");
-  if (activeFilter === "waiting_info") return list.filter((s) => s.ai_status === "waiting_info");
-  return list;
+  let result = list;
+
+  if (activeFilter === "new") result = result.filter((s) => s.staff_status === "new");
+  else if (activeFilter === "in_progress") result = result.filter((s) => s.staff_status === "in_progress");
+  else if (activeFilter === "done") result = result.filter((s) => s.staff_status === "done");
+  else if (activeFilter === "needs_staff") result = result.filter((s) => s.ai_status === "needs_staff");
+  else if (activeFilter === "waiting_info") result = result.filter((s) => s.ai_status === "waiting_info");
+
+  if (activeModeFilter !== "all") {
+    result = result.filter((s) => (s.mode || "unknown") === activeModeFilter);
+  }
+
+  return result;
 }
 
 async function loadDetail(sid) {
