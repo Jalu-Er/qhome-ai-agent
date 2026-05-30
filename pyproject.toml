@@ -1,9 +1,23 @@
 [project]
 name = "qhome-ai-agent"
-version = "0.1.0"
-description = "Customer support multi-agent MVP for AI Agent Competition 2026."
-requires-python = ">=3.10"
+version = "1.0.0"
+description = "Multi-Agent Customer Support & Renovation Quotation System for QHome Mart — AI Agent Competition 2026"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+keywords = ["multi-agent", "ai", "customer-support", "renovation", "sqlite", "llm"]
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/Jalu-Er/qhome-ai-agent"
+
+[project.scripts]
+qhome = "qhome_ai_agent.cli:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"

@@ -1,23 +1,54 @@
+# Environment
 .env
 .env.*
 !.env.example
 
+# Python
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
+.coverage
+htmlcov/
 
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Node
 node_modules/
+
+# Build artifacts
 dist/
 build/
+*.egg-info/
+*.egg
 
+# Runtime outputs
 logs/
 runs/
 runs-test/
 outputs/
-data/qhome_agent.db
-data/*.db
 
+# Database runtime files
+data/*.db
+data/*.sqlite
+*.db
+*.sqlite
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
 web.log
+
+# Temp
+*.tmp
+*.bak
