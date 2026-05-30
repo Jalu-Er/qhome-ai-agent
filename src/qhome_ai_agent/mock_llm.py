@@ -908,6 +908,8 @@ class MockChatModel:
             return missing
         if intent == "damaged_item":
             missing = []
+            if not self._has_contact(text):
+                missing.append("nomor HP/WhatsApp aktif")
             if "qh-" not in text:
                 missing.append("nomor pesanan")
             if "foto" not in text and "gambar" not in text:

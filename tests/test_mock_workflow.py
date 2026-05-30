@@ -106,6 +106,74 @@ class MockWorkflowTest(unittest.TestCase):
         self.assertFalse(triage["multi_intent"])
         self.assertEqual(triage["priority_rule"], "standard_routing")
 
+    def test_support_complaint_without_wa(self) -> None:
+        knowledge_base = {"policies": [], "product_guides": []}
+        ticket = {
+            "id": "complaint-no-wa",
+            "customer_name": "Lona",
+            "subject": "Keramik pecah",
+            "message": "Pesanan QH-10482 baru sampai pagi ini, tapi 6 dus keramik ada yang pecah dan retak."
+        }
+        output = run_workflow(
+            model=MockChatModel(),
+            ticket=ticket,
+            knowledge_base=knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="complaint-no-wa-run",
+        )
+        
+        support_case = output["final"]["support_case"]
+        missing = " ".join(support_case["data_missing"]).lower()
+        self.assertIn("whatsapp", missing + " phone number kontak wa") # Ensure it triggers
+        
+        # Check that staff_next_action doesn't say hubungi, but says "minta nomor WhatsApp"
+        self.assertNotIn("hubungi", support_case["staff_next_action"].lower())
+        self.assertIn("minta nomor whatsapp", support_case["staff_next_action"].lower())
+
+    def test_support_complaint_with_wa(self) -> None:
+        knowledge_base = {"policies": [], "product_guides": []}
+        ticket = {
+            "id": "complaint-with-wa",
+            "customer_name": "Lona",
+            "customer_whatsapp": "08123456789",
+            "subject": "Keramik pecah",
+            "message": "Pesanan QH-10482 baru sampai pagi ini, tapi 6 dus keramik ada yang pecah dan retak."
+        }
+        output = run_workflow(
+            model=MockChatModel(),
+            ticket=ticket,
+            knowledge_base=knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="complaint-with-wa-run",
+        )
+        
+        support_case = output["final"]["support_case"]
+        # Because WA is present, it should NOT override to "Minta nomor WhatsApp..."
+        self.assertNotIn("minta nomor whatsapp/telepon", support_case["staff_next_action"].lower())
+
+    def test_follow_up_wa_after_complaint(self) -> None:
+        knowledge_base = {"policies": [], "product_guides": []}
+        ticket = {
+            "id": "complaint-follow-up-wa",
+            "customer_name": "Lona",
+            "subject": "Keramik pecah",
+            "message": "Nomor WA saya 08123456789",
+            "session_state": {
+                "active_pipeline": "support",
+                "pending_action": "waiting_for_whatsapp"
+            }
+        }
+        output = run_workflow(
+            model=MockChatModel(),
+            ticket=ticket,
+            knowledge_base=knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="complaint-follow-up-wa-run",
+        )
+        triage = output["agent_outputs"]["triage_router"]
+        self.assertEqual(triage["selected_pipeline"], "support")
+        self.assertEqual(triage["priority_rule"], "standard_routing")
+
     def test_pure_renovation_quote_routing(self) -> None:
         knowledge_base = {"policies": [], "product_guides": []}
         ticket = {

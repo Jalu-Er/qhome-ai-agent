@@ -403,8 +403,8 @@ function renderDetail(session) {
         renderStaticTrace(trace);
       };
 
-      // Autoplay the step-by-step trace simulation so the staff can watch the agents' discussion live!
-      playSimulation(trace);
+      // Default to static trace display for staff overview. Live simulation can be triggered manually.
+      renderStaticTrace(trace);
     } else {
       simBtn.style.display = "none";
       instantBtn.style.display = "none";
@@ -558,9 +558,9 @@ function formatTraceBody(step, body) {
         <div><strong style="color:var(--accent);">Primary Intent:</strong> <span>${fmt(output.primary_intent)}</span></div>
         <div><strong style="color:#ff9800;">Priority Rule:</strong> <span>${fmt(output.priority_rule || "standard_routing")}</span></div>
         <div><strong>Reason:</strong> <span style="color:var(--muted);">${output.routing_reason || "-"}</span></div>
-        <div style="background:rgba(255,82,82,0.06); padding:8px 12px; border-left:3px solid #ff5252; border-radius:3px; margin-top:5px;">
-          <strong style="color:#ff5252; display:block; margin-bottom:3px;">Staff Handoff Notes:</strong>
-          <span style="font-weight:500; color:#ffbaba;">${output.staff_handoff_notes || "-"}</span>
+        <div style="background:#fffbeb; border:1px solid #fde68a; padding:8px; border-radius:6px; margin-top:5px; color:#92400e;">
+          <strong style="color:#d97706; display:block; margin-bottom:3px;">Staff Handoff Notes:</strong>
+          ${output.staff_handoff_notes || "-"}
         </div>
       </div>
     `;

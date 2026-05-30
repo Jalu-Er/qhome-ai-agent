@@ -348,6 +348,33 @@ def run_workflow(
         qte_repo=qte_repo,
     )
 
+def normalize_support_case(final_output: dict, ticket: dict, session_state: dict) -> dict:
+    final_resp = final_output.get("final", {})
+    support_case = final_resp.get("support_case") or {}
+    if not support_case:
+        return final_output
+        
+    wa_in_ticket = ticket.get("customer_whatsapp", "") or ""
+    has_wa = bool(wa_in_ticket.strip())
+    
+    data_missing = support_case.get("data_missing", [])
+    if isinstance(data_missing, str):
+        data_missing = [data_missing]
+    
+    missing_str = " ".join(data_missing).lower()
+    phone_keywords = ["phone", "phone number", "nomor telepon", "whatsapp", "wa", "nomor wa", "kontak", "hp"]
+    needs_contact = any(k in missing_str for k in phone_keywords)
+    
+    if not has_wa and needs_contact:
+        support_case["staff_next_action"] = "Minta nomor WhatsApp/telepon pelanggan melalui chat terlebih dahulu, lalu teruskan ke Customer Support Team."
+        support_case["sla_suggestion"] = "Minta kontak pelanggan segera; tindak lanjut staff setelah kontak tersedia."
+        if session_state:
+            session_state["pending_action"] = "waiting_for_whatsapp"
+            
+    final_resp["support_case"] = support_case
+    final_output["final"] = final_resp
+    return final_output
+
 
 def _run_support_pipeline(
     model: ChatModel,
@@ -389,6 +416,9 @@ def _run_support_pipeline(
             session_store.update_trace(session_id, step_data)
 
     final_output = state.final_output()
+    session_state = ticket.get("session_state") or {}
+    final_output = normalize_support_case(final_output, ticket, session_state)
+    
     final_output["trace"] = trace_steps
     write_json(run_dir / "final_output.json", final_output)
     write_markdown_report(run_dir / "report.md", final_output)
