@@ -6,9 +6,11 @@ const message = document.getElementById("message");
 const sendBtn = document.getElementById("sendBtn");
 const mode = document.getElementById("mode");
 const samplesRow = document.getElementById("samples");
+const pipelineBadge = document.getElementById("pipelineBadge");
 
 let history = [];
 const sessionId = "CS-" + Math.random().toString(36).slice(2, 8);
+
 
 /* Sample buttons */
 document.querySelectorAll("[data-sample]").forEach((btn) => {
@@ -73,6 +75,9 @@ async function send() {
     if (!res.ok) throw new Error(data.error || "Gagal memproses.");
     const reply = (data.final || {}).customer_reply || "Pesan Anda sudah diterima.";
     history.push({ role: "assistant", content: reply });
+    // Update pipeline badge from triage_router output
+    const pipeline = (data.agent_outputs || {}).triage_router?.selected_pipeline || null;
+    updatePipelineBadge(pipeline);
   } catch (err) {
     history.push({ role: "assistant", content: "Maaf, terjadi gangguan: " + err.message });
   } finally {
@@ -103,7 +108,7 @@ function renderChat() {
     label.textContent = item.role === "customer" ? name : "QHome AI";
     const p = document.createElement("p");
     p.className = "bubble-text";
-    
+
     // Parse basic markdown formatting
     let formatted = item.content
       .replace(/&/g, "&amp;")
@@ -115,4 +120,23 @@ function renderChat() {
     chatThread.append(div);
   });
   chatThread.scrollTop = chatThread.scrollHeight;
+}
+
+function updatePipelineBadge(pipeline) {
+  if (!pipelineBadge || !pipeline) return;
+  const prevPipeline = pipelineBadge.dataset.pipeline;
+  pipelineBadge.dataset.pipeline = pipeline;
+  pipelineBadge.classList.remove("hidden", "pipeline-support", "pipeline-renovation");
+  if (pipeline === "renovation_quote") {
+    pipelineBadge.textContent = "🏗️ Renovation Pipeline";
+    pipelineBadge.classList.add("pipeline-renovation");
+  } else {
+    pipelineBadge.textContent = "🔧 Support Pipeline";
+    pipelineBadge.classList.add("pipeline-support");
+  }
+  // Flash animation when pipeline changes
+  if (prevPipeline && prevPipeline !== pipeline) {
+    pipelineBadge.classList.add("pipeline-switch");
+    setTimeout(() => pipelineBadge.classList.remove("pipeline-switch"), 800);
+  }
 }

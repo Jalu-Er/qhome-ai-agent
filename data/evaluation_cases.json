@@ -5,5 +5,7 @@
   {"id":"eval-damaged-item","customer_name":"Pak Budi","subject":"Komplain barang rusak","message":"Pesanan QH-77881 sampai tapi 2 box keramik pecah. Saya komplain karena mau dipasang minggu ini."},
   {"id":"eval-led-home","customer_name":"Nana","subject":"Pembelian lampu LED rumah","message":"Saya mau beli lampu LED untuk rumah, butuh sekitar 8 titik lampu ruang tamu dan kamar. Minta rekomendasi produk dan estimasi."},
   {"id":"eval-empty","customer_name":"Anon","subject":"","message":" "},
-  {"id":"eval-mixed-lang","customer_name":"John","subject":"Need help","message":"halo min, my pesanan QH-12345 broken, keramik pecah semua wtf. Please refund asap."}
+  {"id":"eval-mixed-lang","customer_name":"John","subject":"Need help","message":"halo min, my pesanan QH-12345 broken, keramik pecah semua wtf. Please refund asap."},
+  {"id":"eval-brick-order","customer_name":"Pak Seto","subject":"Pemesanan batu bata untuk pagar","message":"Saya butuh batu bata sebanyak 5000 pcs untuk bangun pagar rumah. Berapa estimasi harga dan bisa dikirim kapan?"},
+  {"id":"eval-hebel-inquiry","customer_name":"Ibu Rina","subject":"Konsultasi bata ringan","message":"Saya mau bangun dinding kamar baru pakai hebel, ukuran 3x2.5 meter. Butuh berapa pcs dan apa saja yang harus saya beli selain hebel?"}
 ]

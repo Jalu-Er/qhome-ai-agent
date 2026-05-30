@@ -496,10 +496,46 @@ def _run_renovation_pipeline(
     # 3. Inventory Snapshot Agent
     agent = RENOVATION_AGENTS["inventory_snapshot"]
     recommended_items = result_retrieval.get("recommended_products") or []
-    
+
+    # PRODUCT-NOT-FOUND FALLBACK: if no products found, skip to handoff with clear message
+    if not recommended_items:
+        fallback_note = (
+            "Saya belum menemukan produk tersebut di katalog demo kami saat ini. "
+            "Saya sudah mencatat permintaan Anda dan akan meneruskannya ke staff QHome Mart "
+            "untuk konfirmasi harga, ketersediaan stok, dan estimasi yang lebih akurat. "
+            "Tim kami akan segera menghubungi Anda."
+        )
+        fallback_result = {
+            "selected_pipeline": "renovation_quote",
+            "final": {
+                "customer_reply": fallback_note,
+                "staff_internal_summary": (
+                    "Produk yang diminta tidak ditemukan di katalog demo. "
+                    f"Tiket dari: {state.ticket.get('customer_name', 'Pelanggan')}. "
+                    "Perlu konfirmasi manual dari staff toko."
+                ),
+                "escalate": True,
+                "missing_info": ["product_catalog_gap"],
+                "next_steps": ["Hubungi pelanggan untuk konfirmasi kebutuhan spesifik", "Cek katalog fisik QHome Mart"],
+            },
+            "agent_outputs": state.agent_outputs,
+            "run_id": actual_run_id,
+        }
+        # Add trace for staff dashboard
+        product_not_found_step = {
+            "agent": "Product Retrieval — Fallback",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "output": {"note": "Produk tidak ditemukan di katalog.", "fallback": True},
+        }
+        trace_steps.append(product_not_found_step)
+        if session_store and session_id:
+            session_store.update_trace(session_id, product_not_found_step)
+        return fallback_result
+
     # Query inventory snapshot from SQLite
     inventory_context = []
     for item in recommended_items:
+
         sku = item.get("sku", "")
         snap = inv_repo.get_inventory_snapshot(sku)
         if snap:

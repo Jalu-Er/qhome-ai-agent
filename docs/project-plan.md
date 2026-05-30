@@ -1,82 +1,50 @@
-# Project Plan: QHome Customer Support & Product Advisor Multi-Agent
+# Project Plan: QHome AI Agent
 
-Last updated: 2026-05-25.
+Last updated: 2026-05-29.
 
-## Tujuan Utama
+## Tujuan
 
-Membangun MVP AI Agent untuk AI Agent Competition 2026 yang menunjukkan sistem multi-agent nyata: agent punya peran berbeda, saling berbagi informasi, mengambil keputusan, mencatat log interaksi, dan menghasilkan output terstruktur yang relevan untuk bisnis QHome Mart.
+Membangun sistem AI multi-agent untuk AI Agent Competition 2026 yang mendemonstrasikan kolaborasi antar-agen, pengambilan keputusan berbasis LLM, kalkulasi material deterministik, dan output bisnis terukur — dalam konteks retail material bangunan QHome Mart Yogyakarta.
 
-## Use Case Final
-
-Customer Support & Product Advisor Agent untuk konteks retail/home improvement.
-
-Sistem menerima pertanyaan produk atau komplain pelanggan, lalu menghasilkan:
-
-- klasifikasi intent pelanggan,
-- tingkat prioritas,
-- ringkasan masalah,
-- rekomendasi solusi,
-- rekomendasi tipe produk jika ticket berupa konsultasi produk,
-- keputusan eskalasi,
-- jawaban final untuk pelanggan,
-- log reasoning antar agent,
-- output JSON yang bisa dievaluasi.
-
-## Batasan Scope
-
-Yang dikerjakan:
-
-- CLI/backend Python untuk menjalankan workflow multi-agent.
-- Web chatbox sederhana untuk demo.
-- 5 agent dengan peran jelas.
-- Sample knowledge base, product guides, dan sample customer tickets.
-- Structured output JSON.
-- Log setiap interaksi agent ke file.
-- README lengkap untuk setup, run, dan demo.
-- Contoh hasil run untuk bahan video.
-
-Yang tidak dikerjakan untuk MVP:
-
-- UI kompleks.
-- Integrasi sistem QHome Mart asli.
-- Database production.
-- Auth/user management.
-- n8n sebagai core agent engine.
-
-## Agent
-
-1. Intent Classifier Agent
-   - Mengidentifikasi intent, kategori masalah, dan informasi yang kurang.
-
-2. Knowledge Retrieval Agent
-   - Mengambil kebijakan/FAQ/product guide yang relevan dari knowledge base lokal.
-
-3. Solution Planner Agent
-   - Menyusun opsi solusi, rekomendasi tipe produk, dan langkah tindak lanjut.
-
-4. Priority & Escalation Agent
-   - Menilai urgency, risiko bisnis, dan perlu tidaknya eskalasi ke manusia.
-
-5. QA & Final Response Agent
-   - Mengecek konsistensi, membuat jawaban final, dan memastikan output sesuai format.
-
-## Arsitektur MVP
-
-Input chat/ticket pelanggan masuk ke orchestrator. Orchestrator menjalankan agent berurutan dengan shared state. Setiap agent menerima state sebelumnya, menambahkan hasil analisisnya, lalu hasilnya dicatat ke log. Agent terakhir menghasilkan final response dan structured JSON.
+## Arsitektur Final
 
 ```text
-Customer Chat/Ticket
-  -> Intent Classifier
-  -> Knowledge Retrieval
-  -> Solution Planner
-  -> Priority & Escalation
-  -> QA & Final Response
-  -> JSON Output + Markdown Report + Interaction Log
+[Pelanggan] → [Hybrid Triage Router] → [Support Pipeline (5-Agent)] atau [Renovation Pipeline (7-Agent)]
+                                      → [SQLite Database]
+                                      → [Staff Dashboard]
 ```
 
-## SumoPod AI Config
+Total: **13 agen** (1 Router + 5 Support + 7 Renovation).
 
-Gunakan `.env` lokal:
+## Fitur yang Sudah Diimplementasikan
+
+- ✅ Hybrid Triage Router Agent (LLM-powered, multi-intent detection)
+- ✅ 5-Agent Support Pipeline (intent → knowledge → solution → priority → final)
+- ✅ 7-Agent Renovation Pipeline (intake → product → inventory → estimator → quote → risk → handoff)
+- ✅ Dynamic Pipeline Switching (switch otomatis berdasarkan pesan terbaru)
+- ✅ Complaint-First Business Rule
+- ✅ Anti-Looping Logic
+- ✅ Latest-Message-First Classification
+- ✅ SQLite persistent storage (9 tabel)
+- ✅ Customer Chat UI (web)
+- ✅ Staff Dashboard (live agent trace)
+- ✅ CLI workflow runner
+- ✅ Mock mode (offline, deterministik)
+- ✅ Live mode (SumoPod API / OpenAI-compatible)
+- ✅ 20 unit tests (100% pass)
+- ✅ 7 eval scenarios (28.29/30)
+- ✅ Deployment guide (systemd + Nginx)
+
+## Batasan Scope (Tidak Dikerjakan)
+
+- UI mobile/responsive kompleks
+- Integrasi sistem QHome Mart asli
+- Database production (MariaDB/PostgreSQL)
+- Auth/user management
+- Upload file/gambar di chat
+- Integrasi WhatsApp/CRM langsung
+
+## SumoPod AI Config
 
 ```bash
 AI_API_KEY=sk-...
@@ -84,65 +52,8 @@ AI_BASE_URL=https://ai.sumopod.com/v1
 AI_MODEL=gpt-4o-mini
 ```
 
-Catatan:
+## Deliverable Kompetisi
 
-- `.env` tidak boleh dipush.
-- `.env.example` boleh dipush karena tidak berisi API key.
-- Default model `gpt-4o-mini` untuk hemat token.
-
-## Rencana Eksekusi
-
-### Day 1: Foundation
-
-- Buat struktur Python project.
-- Buat OpenAI-compatible client untuk SumoPod.
-- Buat schema data ticket, agent result, dan final output.
-- Buat knowledge base dummy.
-- Buat product guides dummy untuk pertanyaan produk.
-- Buat orchestrator sequential.
-
-### Day 2: Agent Logic
-
-- Implement 5 agent.
-- Tambahkan prompt per agent.
-- Tambahkan logging JSONL.
-- Tambahkan sample tickets dan command untuk menjalankan demo.
-
-### Day 3: Output & Evaluation
-
-- Buat output JSON final.
-- Buat report Markdown per run.
-- Buat simple evaluation rubric: completeness, escalation correctness, policy match.
-- Tambahkan test/mock mode agar repo tetap reproducible tanpa API key.
-
-### Day 4: Documentation
-
-- Perkuat README.
-- Tambahkan diagram arsitektur.
-- Tambahkan contoh input/output.
-- Tulis deskripsi submission minimal 500 karakter.
-
-### Day 5: Final Polish
-
-- Run demo end-to-end.
-- Siapkan script video 3-5 menit.
-- Push final repo.
-- Submit link GitHub, deskripsi, dan video.
-
-## Definition of Done
-
-Project siap submit jika:
-
-- `README.md` menjelaskan setup dan cara menjalankan demo.
-- Bisa dijalankan dengan SumoPod API.
-- Bisa dijalankan dalam mock mode tanpa API key.
-- Ada minimal 3 sample ticket.
-- Ada minimal 1 sample konsultasi produk.
-- Ada log interaksi agent.
-- Ada output JSON dan report.
-- Ada dokumen deskripsi submission.
-- Tidak ada API key atau secret di GitHub.
-
-## Pitch Singkat
-
-QHome Customer Support & Product Advisor Multi-Agent membantu tim support memproses pertanyaan produk dan komplain pelanggan secara lebih cepat dan konsisten. Sistem membagi pekerjaan ke beberapa agent spesialis: klasifikasi intent, pencarian knowledge base, perencanaan solusi/rekomendasi, penilaian prioritas/eskalasi, dan QA jawaban final. Output akhirnya terstruktur, dapat dilacak melalui log interaksi agent, dan bisa dipakai sebagai dasar efisiensi operasional customer service sekaligus peningkatan kualitas konsultasi produk.
+- ✅ Deskripsi AI Agent (≥500 karakter) → `docs/submission-description.md`
+- ⏳ Video presentasi 3–5 menit → `docs/video-script.md`
+- ✅ Repository GitHub publik dengan dokumentasi
