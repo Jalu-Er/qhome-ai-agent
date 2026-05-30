@@ -37,6 +37,16 @@ class SessionStore:
                     "staff_notes": "",
                     "created_at": now,
                     "updated_at": now,
+                    "state": {
+                        "current_pipeline": None,
+                        "last_intent": None,
+                        "last_topic": None,
+                        "last_products": [],
+                        "last_quote_id": None,
+                        "pending_action": None,
+                        "complaint_status": None,
+                        "quotation_status": None,
+                    },
                 }
             session = self._sessions[session_id]
             session["customer_name"] = customer_name
@@ -89,6 +99,34 @@ class SessionStore:
                             session["customer_whatsapp"] = phone_match.group(0)
                             break
                             
+            # Extract and update session state from agent outputs
+            state = session.setdefault("state", {
+                "current_pipeline": None, "last_intent": None, "last_topic": None,
+                "last_products": [], "last_quote_id": None, "pending_action": None,
+                "complaint_status": None, "quotation_status": None,
+            })
+            router_out = outputs.get("triage_router") or {}
+            if router_out.get("selected_pipeline"):
+                state["current_pipeline"] = router_out["selected_pipeline"]
+            if router_out.get("primary_intent"):
+                state["last_intent"] = router_out["primary_intent"]
+            intake_out = outputs.get("requirement_intake") or {}
+            if intake_out.get("project_type"):
+                state["last_topic"] = intake_out["project_type"]
+            if intake_out.get("required_categories"):
+                state["last_products"] = intake_out.get("required_categories", [])
+            quote_out = outputs.get("quote_builder") or {}
+            if quote_out.get("quote_code"):
+                state["last_quote_id"] = quote_out["quote_code"]
+                state["quotation_status"] = "draft"
+            # Derive complaint_status
+            primary = (router_out.get("primary_intent") or "").lower()
+            if "damaged" in primary or "complaint" in primary or "complain" in primary:
+                if state["complaint_status"] is None:
+                    state["complaint_status"] = "open"
+            if router_out.get("customer_whatsapp") and state.get("complaint_status") == "open":
+                state["complaint_status"] = "pending_staff_contact"
+
             session["updated_at"] = now
 
     def update_trace(self, session_id: str, step: dict) -> None:
@@ -284,6 +322,11 @@ class WebApp:
                 else:
                     model = MockChatModel()
                 session_id = payload.get("session_id")
+                # Inject existing session state for follow-up context
+                if session_id:
+                    existing = app.sessions.get(str(session_id))
+                    if existing and existing.get("state"):
+                        ticket["session_state"] = existing["state"]
                 return run_workflow(
                     model=model,
                     ticket=ticket,

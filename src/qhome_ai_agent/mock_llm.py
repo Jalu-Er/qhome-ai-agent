@@ -58,8 +58,19 @@ class MockChatModel:
 
     def _triage_router(self, ticket: dict, text: str) -> dict[str, Any]:
         msg = text.lower()
-        latest_msg = ticket.get("message", "").lower()
-        
+        latest_msg = ticket.get("message", "").lower().strip()
+
+        # SHORT FOLLOW-UP WORDS: These are unambiguous continuations
+        SHORT_FOLLOW_UP = {
+            "iya", "ok", "oke", "baik", "lanjut", "lanjutkan", "ya", "setuju",
+            "siap", "yang tadi", "produk tadi", "ambil itu", "ambil yang itu",
+            "ambil", "konfirmasi", "bisa", "oke deh", "oke gan", "makasih",
+        }
+        session_state = ticket.get("session_state", {}) or {}
+        prev_pipeline = session_state.get("current_pipeline")
+        prev_intent = session_state.get("last_intent") or "general_support"
+        is_short_followup = latest_msg in SHORT_FOLLOW_UP or (len(latest_msg.split()) <= 3 and latest_msg in SHORT_FOLLOW_UP)
+
         # Detect intents from the whole conversation
         is_complaint = any(word in msg for word in ["pecah", "rusak", "retak", "terlambat", "belum sampai", "salah ukuran", "damage", "komplain"])
         is_renovation = any(word in msg for word in ["renovasi", "quote", "estimasi", "biaya", "2x2", "kamar_mandi", "renovation", "lembab", "jamur", "mandi", "batu bata", "ingin memesan"])
@@ -70,7 +81,7 @@ class MockChatModel:
         # Detect intents specifically from the LATEST message
         latest_is_renovation = any(word in latest_msg for word in ["ingin memesan", "batu bata", "renovasi", "quote", "estimasi", "biaya"])
         latest_is_complaint = any(word in latest_msg for word in ["pecah", "rusak", "retak"])
-        
+
         # Default fallback
         primary_intent = "general_support"
         secondary_intents = []
@@ -79,6 +90,25 @@ class MockChatModel:
         priority_rule = "standard_routing"
         routing_reason = "Layanan pelanggan QHome Mart standar."
         staff_handoff_notes = "Tangani pertanyaan umum dari pelanggan secara profesional."
+
+        # SHORT FOLLOW-UP: keep same pipeline as previous session
+        if is_short_followup and prev_pipeline:
+            primary_intent = prev_intent
+            secondary_intents = []
+            selected_pipeline = prev_pipeline
+            multi_intent = False
+            priority_rule = "follow_up_continuation"
+            routing_reason = f"Pesan pendek pelanggan ({latest_msg!r}) adalah lanjutan dari percakapan sebelumnya."
+            staff_handoff_notes = f"Pesan ini adalah konfirmasi/lanjutan. Pipeline tetap: {prev_pipeline}."
+            _phone_match = re.search(r"\b(?:\+62|62|0)8\d{7,13}\b", ticket.get("message", ""))
+            wa = _phone_match.group(0) if _phone_match else None
+            return {
+                "primary_intent": primary_intent, "secondary_intents": secondary_intents,
+                "selected_pipeline": selected_pipeline, "multi_intent": multi_intent,
+                "routing_reason": routing_reason, "priority_rule": priority_rule,
+                "staff_handoff_notes": staff_handoff_notes,
+                "customer_whatsapp": wa, "customer_name": None,
+            }
 
         # Mixed multi-intent case (complaint + sales/renovation)
         if is_coding:
@@ -98,6 +128,7 @@ class MockChatModel:
             priority_rule = "dynamic_pipeline_switch"
             routing_reason = "Pesan terbaru pelanggan adalah permintaan pesanan baru, dialihkan ke pipa renovasi."
             staff_handoff_notes = "Pelanggan sebelumnya memiliki komplain, tapi sekarang meminta penawaran baru."
+
         elif is_complaint and is_renovation:
             primary_intent = "damaged_item"
             secondary_intents = ["renovation_quote"]

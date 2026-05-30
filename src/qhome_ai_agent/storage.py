@@ -228,9 +228,38 @@ def seed_db(project_root: Path, db_path: Path = DEFAULT_DB_PATH) -> None:
 
 # Repositories
 
+# --- Module-level alias cache (loaded once) ---
+_ALIAS_MAP: dict[str, list[str]] = {}
+
+
+def _load_alias_map(project_root: Path | None = None) -> dict[str, list[str]]:
+    """Load product_aliases.json relative to project root."""
+    global _ALIAS_MAP
+    if _ALIAS_MAP:
+        return _ALIAS_MAP
+    # Try common project root locations
+    candidates = []
+    if project_root:
+        candidates.append(project_root / "data/seed/product_aliases.json")
+    # Walk up from current file to find data/seed/product_aliases.json
+    here = Path(__file__).resolve()
+    for parent in [here.parent, here.parent.parent, here.parent.parent.parent]:
+        candidates.append(parent / "data/seed/product_aliases.json")
+    for path in candidates:
+        if path.exists():
+            try:
+                _ALIAS_MAP = json.loads(path.read_text(encoding="utf-8"))
+                return _ALIAS_MAP
+            except Exception:
+                pass
+    return {}
+
+
 class ProductRepository:
     def __init__(self, db_path: Path = DEFAULT_DB_PATH) -> None:
         self.db_path = db_path
+        # Ensure alias map is loaded
+        _load_alias_map()
 
     def search_products(
         self, category: str | None = None, use_case: str | None = None, budget: int | None = None, limit: int = 10
@@ -269,6 +298,65 @@ class ProductRepository:
                     continue
             results.append(prod)
 
+        return results
+
+    def search_by_alias(
+        self, keyword: str, limit: int = 5
+    ) -> list[dict[str, Any]]:
+        """Find products by alias/synonym (case-insensitive).
+        Returns up to `limit` products matching the keyword alias.
+        Falls back to empty list if no alias found.
+        """
+        alias_map = _load_alias_map()
+        keyword_lower = keyword.strip().lower()
+        sku_list = alias_map.get(keyword_lower, [])
+        if not sku_list:
+            return []
+        results = []
+        conn = get_connection(self.db_path)
+        cursor = conn.cursor()
+        for sku in sku_list[:limit]:
+            cursor.execute("SELECT * FROM products WHERE sku = ? AND is_active = 1", (sku,))
+            row = cursor.fetchone()
+            if row:
+                prod = dict(row)
+                try:
+                    prod["use_case"] = json.loads(prod["use_case"]) if prod["use_case"] else []
+                except Exception:
+                    prod["use_case"] = []
+                results.append(prod)
+        conn.close()
+        return results
+
+    def search_by_keyword(
+        self, keyword: str, limit: int = 5
+    ) -> list[dict[str, Any]]:
+        """Search products by keyword across name and category (case-insensitive).
+        First tries alias lookup, then falls back to LIKE search.
+        """
+        # 1. Try alias-based lookup first
+        alias_results = self.search_by_alias(keyword, limit=limit)
+        if alias_results:
+            return alias_results
+        # 2. Fallback: LIKE search across name and category
+        conn = get_connection(self.db_path)
+        cursor = conn.cursor()
+        like_kw = f"%{keyword}%"
+        cursor.execute(
+            "SELECT * FROM products WHERE is_active = 1 "
+            "AND (LOWER(name) LIKE LOWER(?) OR LOWER(category) LIKE LOWER(?)) LIMIT ?",
+            (like_kw, like_kw, limit),
+        )
+        rows = cursor.fetchall()
+        conn.close()
+        results = []
+        for r in rows:
+            prod = dict(r)
+            try:
+                prod["use_case"] = json.loads(prod["use_case"]) if prod["use_case"] else []
+            except Exception:
+                prod["use_case"] = []
+            results.append(prod)
         return results
 
     def get_product_by_sku(self, sku: str) -> dict[str, Any] | None:

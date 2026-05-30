@@ -408,5 +408,116 @@ class MockWorkflowTest(unittest.TestCase):
         self.assertIn("layanan qhome", reply)
 
 
+class AliasResolverTest(unittest.TestCase):
+    """Tests for alias-based product retrieval from SQLite."""
+
+    def setUp(self) -> None:
+        from qhome_ai_agent.storage import ProductRepository, seed_db, DEFAULT_DB_PATH
+        seed_db(ROOT)
+        self.repo = ProductRepository()
+
+    def test_alias_hebel_maps_to_bata_ringan(self) -> None:
+        results = self.repo.search_by_alias("hebel")
+        skus = [r["sku"] for r in results]
+        self.assertTrue(len(results) > 0, "Expected results for alias 'hebel'")
+        self.assertTrue(any("HBL" in sku for sku in skus), f"Expected QH-HBL-* SKU, got: {skus}")
+
+    def test_alias_bata_maps_to_batu_bata(self) -> None:
+        results = self.repo.search_by_alias("bata")
+        skus = [r["sku"] for r in results]
+        self.assertTrue(len(results) > 0, "Expected results for alias 'bata'")
+        self.assertTrue(any("BTB" in sku for sku in skus), f"Expected QH-BTB-* SKU, got: {skus}")
+
+    def test_alias_semen_maps_to_semen(self) -> None:
+        results = self.repo.search_by_alias("semen")
+        self.assertTrue(len(results) > 0, "Expected results for alias 'semen'")
+        self.assertTrue(any(r["category"] == "semen" for r in results))
+
+    def test_alias_cat_maps_to_cat_products(self) -> None:
+        results = self.repo.search_by_alias("cat")
+        self.assertTrue(len(results) > 0, "Expected results for alias 'cat'")
+
+    def test_search_by_keyword_fallback(self) -> None:
+        """search_by_keyword should fallback to LIKE search if alias not found."""
+        results = self.repo.search_by_keyword("granit")
+        self.assertTrue(len(results) > 0, "Expected results for keyword 'granit'")
+
+    def test_unknown_alias_returns_empty(self) -> None:
+        results = self.repo.search_by_alias("produk_tidak_ada_xyz")
+        self.assertEqual(results, [])
+
+
+class FollowUpContinuityTest(unittest.TestCase):
+    """Tests for short follow-up pipeline continuity (session_state)."""
+
+    def setUp(self) -> None:
+        self.knowledge_base = read_json(ROOT / "data/knowledge_base.json")
+        self.model = MockChatModel()
+
+    def _ticket_with_state(self, message: str, pipeline: str, intent: str) -> dict:
+        return {
+            "id": "followup-test",
+            "customer_name": "Pelanggan",
+            "channel": "Web Chat",
+            "subject": "Follow-up test",
+            "message": message,
+            "history": "",
+            "session_state": {
+                "current_pipeline": pipeline,
+                "last_intent": intent,
+                "last_topic": None,
+                "last_products": [],
+                "last_quote_id": None,
+                "pending_action": None,
+                "complaint_status": None,
+                "quotation_status": None,
+            },
+        }
+
+    def test_iya_keeps_support_pipeline(self) -> None:
+        """'iya' after staff asks for WA number should keep support pipeline."""
+        ticket = self._ticket_with_state("iya", "support", "damaged_item")
+        output = run_workflow(
+            model=self.model,
+            ticket=ticket,
+            knowledge_base=self.knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="followup-iya-test",
+        )
+        router = output["agent_outputs"]["triage_router"]
+        self.assertEqual(router["selected_pipeline"], "support")
+        self.assertEqual(router["priority_rule"], "follow_up_continuation")
+
+    def test_ok_keeps_renovation_pipeline(self) -> None:
+        """'ok' should keep renovation pipeline if that was the previous state."""
+        ticket = self._ticket_with_state("ok", "renovation_quote", "renovation_quote")
+        output = run_workflow(
+            model=self.model,
+            ticket=ticket,
+            knowledge_base=self.knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="followup-ok-test",
+        )
+        router = output["agent_outputs"]["triage_router"]
+        self.assertEqual(router["selected_pipeline"], "renovation_quote")
+        self.assertEqual(router["priority_rule"], "follow_up_continuation")
+
+    def test_complaint_message_overrides_followup(self) -> None:
+        """A real complaint message should NOT be treated as follow-up even with session_state."""
+        ticket = self._ticket_with_state(
+            "pesanan saya rusak semua, ini tidak bisa diterima!", "renovation_quote", "renovation_quote"
+        )
+        output = run_workflow(
+            model=self.model,
+            ticket=ticket,
+            knowledge_base=self.knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="followup-complaint-override-test",
+        )
+        router = output["agent_outputs"]["triage_router"]
+        # Should detect complaint, NOT treat as follow-up
+        self.assertNotEqual(router["priority_rule"], "follow_up_continuation")
+
+
 if __name__ == "__main__":
     unittest.main()
