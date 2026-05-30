@@ -269,6 +269,11 @@ def run_workflow(
     # Initialize the real-time agent trace list
     trace_steps = []
 
+    # Reset live trace buffer for this new run (prevents cross-run deduplication)
+    if session_store and session_id:
+        if hasattr(session_store, "start_run"):
+            session_store.start_run(session_id, actual_run_id)
+
     # Run formal triage agent using LLM (or mock model)
     triage_payload = {"ticket": ticket}
     triage_raw, triage_dur = timed_agent_run(TRIAGE_ROUTER_AGENT, model, state, triage_payload)

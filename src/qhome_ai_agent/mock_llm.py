@@ -788,17 +788,33 @@ class MockChatModel:
                 "Kalau ada kebutuhan terkait produk atau pesanan QHome, kirimkan detailnya dan saya bantu arahkan."
             )
         elif intent.get("intent") == "bulk_order_delivery":
-            if missing:
+            # Always check if we actually have a WA contact number — critical for staff to follow up
+            wa_in_ticket = ticket.get("customer_whatsapp") or ""
+            wa_in_outputs = (
+                (outputs.get("intent_classifier") or {}).get("customer_whatsapp")
+                or (outputs.get("triage_router") or {}).get("customer_whatsapp")
+                or ""
+            )
+            has_wa = bool(wa_in_ticket.strip() or wa_in_outputs.strip())
+
+            if not has_wa:
+                # No WA number at all — must ask first!
                 response = (
                     f"Terima kasih {ticket.get('customer_name', 'Kak')}, detail pesanan dan alamat sudah saya catat. "
-                    "Agar staff toko bisa menghubungi Anda untuk konfirmasi stok, ongkir, armada, estimasi tiba, dan instruksi transfer BNI, "
-                    "mohon berikan nomor HP atau WhatsApp aktif. Estimasi pengiriman belum bisa dipastikan sebelum staff mengecek stok dan jadwal armada."
+                    "Agar staff kami bisa menghubungi Anda untuk konfirmasi stok, ongkir, armada, estimasi tiba, dan instruksi transfer BNI, "
+                    "mohon berikan **nomor HP atau WhatsApp aktif** Anda. "
+                    "Estimasi pengiriman belum bisa dipastikan sebelum staff mengecek stok dan jadwal armada."
+                )
+            elif missing:
+                response = (
+                    f"Terima kasih {ticket.get('customer_name', 'Kak')}, beberapa informasi masih kami butuhkan: "
+                    f"{', '.join(missing[:3])}. Mohon lengkapi agar kami bisa memproses pesanan Anda."
                 )
             else:
                 response = (
                     f"Terima kasih {ticket.get('customer_name', 'Kak')}, data pesanan dan kontak sudah lengkap. "
                     "Saya teruskan ke staff toko/logistik untuk validasi stok, ongkir, armada, dan estimasi tiba. "
-                    "Staff akan menghubungi Anda melalui nomor HP/WhatsApp yang diberikan sebelum pembayaran diproses."
+                    f"Staff akan menghubungi Anda melalui nomor {wa_in_ticket or wa_in_outputs} sebelum pembayaran diproses."
                 )
         elif intent.get("intent") == "damaged_item" and not missing:
             response = (
@@ -905,12 +921,13 @@ class MockChatModel:
             missing = []
             if not self._has_contact(text):
                 missing.append("nomor HP/WhatsApp aktif")
-            if not any(word in text for word in ["jl", "jalan", "alamat", "bantul", "sleman", "yogyakarta"]):
+            if not any(word in text for word in ["jl", "jalan", "alamat", "bantul", "sleman", "yogyakarta", "jakarta", "bandung", "surabaya", "kota", "kab", "rt", "rw", "no."]):
                 missing.append("alamat pengiriman lengkap")
-            if not any(word in text for word in ["semen", "batu", "bata", "besi", "pasir", "cat", "keramik"]):
+            material_words = ["semen", "batu", "bata", "besi", "pasir", "cat", "keramik", "granit", "marmer", "wallpaper", "baja", "genteng", "roster", "hebel", "batako", "paving", "waterproof"]
+            if not any(word in text for word in material_words):
                 missing.append("daftar item dan jumlah")
-            if not any(word in text for word in ["transfer", "cash", "tunai", "bni", "bca", "mandiri", "bri"]):
-                missing.append("metode pembayaran")
+            if not any(word in text for word in ["transfer", "cash", "tunai", "bni", "bca", "mandiri", "bri", "bayar", "budget", "anggaran"]):
+                missing.append("metode pembayaran atau budget")
             return missing
         return ["nomor pesanan"] if "qh-" not in text else []
 
@@ -949,8 +966,9 @@ class MockChatModel:
     def _is_bulk_order(self, text: str) -> bool:
         if "pesanan qh-" in text:
             return False
-        order_words = ["memesan", "mau pesan", "ingin pesan", "saya pesan", "order", "beli", "pembayaran", "transfer"]
-        material_words = ["bahan bangunan", "semen", "batu bata", "besi", "pasir", "keramik", "dikirim"]
+        order_words = ["memesan", "mau pesan", "ingin pesan", "saya pesan", "order", "beli", "pembayaran", "transfer", "pesan"]
+        material_words = ["bahan bangunan", "semen", "batu bata", "besi", "pasir", "keramik", "granit", "marmer",
+                          "cat", "wallpaper", "hebel", "genteng", "roster", "batako", "paving", "baja", "dikirim"]
         return any(word in text for word in order_words) and any(word in text for word in material_words)
 
     def _has_contact(self, text: str) -> bool:
