@@ -12,6 +12,7 @@ class Agent:
     name: str
     display_name: str
     system_prompt: str
+    agent_type: str = "LLM Reasoning Agent"
 
     def run(self, model: ChatModel, state: RunState, additional_payload: dict[str, Any] | None = None) -> dict[str, Any]:
         payload = {
@@ -57,6 +58,7 @@ TRIAGE_ROUTER_PROMPT = (
 TRIAGE_ROUTER_AGENT = Agent(
     name="triage_router",
     display_name="Hybrid Router & Orchestrator",
+    agent_type="LLM Routing Agent",
     system_prompt=TRIAGE_ROUTER_PROMPT,
 )
 
@@ -185,36 +187,43 @@ RENOVATION_AGENTS = {
     "requirement_intake": Agent(
         name="requirement_intake",
         display_name="Requirement Intake Agent",
+        agent_type="LLM Extraction Agent",
         system_prompt=REQUIREMENT_INTAKE_PROMPT,
     ),
     "product_retrieval": Agent(
         name="product_retrieval",
         display_name="Product Retrieval Agent",
+        agent_type="Catalog Retrieval Agent",
         system_prompt=PRODUCT_RETRIEVAL_PROMPT,
     ),
     "inventory_snapshot": Agent(
         name="inventory_snapshot",
         display_name="Inventory Snapshot Agent",
+        agent_type="Database / Inventory Agent",
         system_prompt=INVENTORY_SNAPSHOT_PROMPT,
     ),
     "quantity_estimator": Agent(
         name="quantity_estimator",
         display_name="Quantity Estimator Agent",
+        agent_type="Deterministic Calculator Agent",
         system_prompt=QUANTITY_ESTIMATOR_PROMPT,
     ),
     "quote_builder": Agent(
         name="quote_builder",
         display_name="Quote Builder Agent",
+        agent_type="Quotation Builder Agent",
         system_prompt=QUOTE_BUILDER_PROMPT,
     ),
     "risk_policy_verifier": Agent(
         name="risk_policy_verifier",
         display_name="Risk & Policy Verifier Agent",
+        agent_type="Critic / Policy Verification Agent",
         system_prompt=RISK_POLICY_VERIFIER_PROMPT,
     ),
     "staff_handoff_response": Agent(
         name="staff_handoff_response",
         display_name="Staff Handoff & Customer Response Agent",
+        agent_type="Handoff Communication Agent",
         system_prompt=STAFF_HANDOFF_RESPONSE_PROMPT,
     ),
 }
@@ -224,6 +233,7 @@ AGENTS: list[Agent] = [
     Agent(
         name="intent_classifier",
         display_name="Intent Classifier Agent",
+        agent_type="Intent Analysis Agent",
         system_prompt=(
             "You are the Intent Classifier Agent for QHome Mart customer support. "
             "Classify the ticket intent and category based PRIMARILY on the customer's LATEST message, using the history only for context. "
@@ -240,6 +250,7 @@ AGENTS: list[Agent] = [
     Agent(
         name="knowledge_retrieval",
         display_name="Knowledge Retrieval Agent",
+        agent_type="Policy Retrieval Agent",
         system_prompt=(
             "You are the Knowledge Retrieval Agent. Use the provided local knowledge base and previous agent outputs. "
             "Select relevant policies and product guides for the ticket. relevant_facts must contain selected policy or product guide "
@@ -250,6 +261,7 @@ AGENTS: list[Agent] = [
     Agent(
         name="solution_planner",
         display_name="Solution Planner Agent",
+        agent_type="Support Planning Agent",
         system_prompt=(
             "You are the Solution Planner Agent. Build a practical resolution plan for the support team. "
             "For product_advice, recommend product types, ask needed follow-up questions, and include safety/usage caveats. "
@@ -264,6 +276,7 @@ AGENTS: list[Agent] = [
     Agent(
         name="priority_escalation",
         display_name="Priority & Escalation Agent",
+        agent_type="Risk & Escalation Agent",
         system_prompt=(
             "You are the Priority and Escalation Agent. Decide priority, business risk, SLA, and whether the ticket "
             "needs human escalation. Return JSON with keys: priority, escalate, escalation_team, "
@@ -274,6 +287,7 @@ AGENTS: list[Agent] = [
     Agent(
         name="qa_final_response",
         display_name="QA & Final Response Agent",
+        agent_type="Customer Response Agent",
         system_prompt=(
             "You are the QA and Final Response Agent. Check consistency across all previous agent outputs, "
             "then produce the final customer reply and internal next steps. Return JSON with keys: ticket_summary, "
@@ -286,6 +300,16 @@ AGENTS: list[Agent] = [
             "If intent is out_of_scope_coding, do not provide code, algorithms, scripts, debugging steps, or automation advice. Briefly say this chat can only help with QHome products, orders, delivery, renovation estimates, and complaints, then invite a QHome-related question. "
             "Keep the final reply natural and specific to the latest customer message. Avoid repeating old issues unless they are directly relevant, and avoid generic filler such as 'mohon bersabar' when a concrete next step is clearer. "
             "IMPORTANT: If the customer is just replying to your previous message (e.g. providing their phone number) and you already provided the main solution/response earlier in the chat history, DO NOT repeat the whole solution. Just politely acknowledge their message and confirm the next steps."
+            "\n\nYou MUST also include a 'support_case' key with an operational packet for staff:"
+            "\n- complaint_category: specific type of issue (e.g. 'damaged_item', 'late_delivery', 'product_advice')"
+            "\n- priority: low/medium/high based on urgency and business risk"
+            "\n- escalation_required: boolean"
+            "\n- escalation_team: which team (e.g. 'logistics', 'customer_service', 'sales')"
+            "\n- data_available: list of customer data already collected (name, WA, order number, etc.)"
+            "\n- data_missing: list of critical data still needed"
+            "\n- staff_next_action: single most important action for staff to take NOW (one clear sentence)"
+            "\n- sla_suggestion: recommended response time (e.g. '2 jam kerja')"
+            "\n- risk_note: business risk if not handled promptly"
         ),
     ),
 ]

@@ -138,6 +138,51 @@
               <div id="dCustomerReply" class="reply-box">-</div>
             </div>
 
+            <!-- Support Case Packet (Support Pipeline only) -->
+            <div class="staff-section" id="supportCaseSection" hidden>
+              <h3>🎫 Support Case Packet <span style="font-size:11px; font-weight:400; color:var(--muted); margin-left:6px;">Operational Artifact — Staff Only</span></h3>
+              <div class="support-case-grid">
+                <div class="sc-card">
+                  <span class="card-label">Kategori Komplain</span>
+                  <strong id="scCategory" class="card-value">-</strong>
+                </div>
+                <div class="sc-card">
+                  <span class="card-label">Prioritas</span>
+                  <strong id="scPriority" class="card-value">-</strong>
+                </div>
+                <div class="sc-card">
+                  <span class="card-label">Eskalasi Diperlukan</span>
+                  <strong id="scEscalate" class="card-value">-</strong>
+                </div>
+                <div class="sc-card">
+                  <span class="card-label">Tim Penanganan</span>
+                  <strong id="scTeam" class="card-value">-</strong>
+                </div>
+                <div class="sc-card">
+                  <span class="card-label">SLA Rekomendasi</span>
+                  <strong id="scSla" class="card-value">-</strong>
+                </div>
+              </div>
+              <div class="sc-action-box">
+                <span class="card-label" style="color:#ff9800; font-weight:600;">⚡ Tindakan Staff Selanjutnya</span>
+                <p id="scNextAction" style="margin: 6px 0 0 0; font-size:14px; font-weight:600; color:var(--text); line-height:1.5;">-</p>
+              </div>
+              <div class="sc-data-row">
+                <div class="sc-data-col">
+                  <span class="card-label">✅ Data Tersedia</span>
+                  <ul id="scDataAvail" class="pill-list" style="margin-top:6px;"></ul>
+                </div>
+                <div class="sc-data-col">
+                  <span class="card-label">⚠️ Data Kurang</span>
+                  <ul id="scDataMissing" class="pill-list" style="margin-top:6px;"></ul>
+                </div>
+              </div>
+              <div style="margin-top:12px; background:rgba(255,82,82,0.06); border-left:3px solid #ff5252; padding:10px 14px; border-radius:0 6px 6px 0;">
+                <span class="card-label" style="color:#ff5252;">Catatan Risiko Bisnis</span>
+                <p id="scRisk" style="margin:4px 0 0 0; font-size:13px; color:#ffbaba;">-</p>
+              </div>
+            </div>
+
             <!-- Quotation & Estimates (New!) -->
             <div class="staff-section" id="quoteSection" hidden>
               <h3>Draft Quotation &amp; Estimate</h3>

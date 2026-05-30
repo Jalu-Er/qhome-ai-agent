@@ -813,19 +813,71 @@ class MockChatModel:
                 "Agar klaim bisa diproses, staff akan melakukan follow-up untuk memastikan bukti kerusakan dan detail instalasi yang masih dibutuhkan. "
                 f"Langkah internal kami: {'; '.join(actions[:3])}"
             )
+        # Build support_case operational packet for staff dashboard
+        intent_str = intent.get("intent", "general_support")
+        prio_str = priority.get("priority", "medium")
+        escalate_bool = bool(priority.get("escalate", False))
+        escalation_team = priority.get("escalation_team", "customer_service")
+
+        data_available = []
+        if ticket.get("customer_name") and ticket.get("customer_name") not in ("Pelanggan", ""):
+            data_available.append("nama pelanggan: " + str(ticket.get("customer_name")))
+        if ticket.get("customer_whatsapp"):
+            data_available.append("nomor WA: " + str(ticket.get("customer_whatsapp")))
+        if "qh-" in str(ticket.get("message", "")).lower():
+            data_available.append("nomor pesanan")
+
+        data_missing = list(missing) if missing else []
+
+        CATEGORY_MAP = {
+            "damaged_item": "Barang Rusak / Klaim Kerusakan",
+            "bulk_order_delivery": "Pesanan Massal / Pengiriman",
+            "product_advice": "Konsultasi Produk",
+            "out_of_scope_coding": "Di Luar Layanan",
+        }
+        complaint_category = CATEGORY_MAP.get(intent_str, "Komplain Umum")
+
+        if escalate_bool:
+            staff_next_action = f"Eskalasi ke tim {escalation_team} dan hubungi pelanggan dalam 1 jam kerja untuk menindaklanjuti."
+        elif data_missing:
+            staff_next_action = f"Hubungi pelanggan via WA untuk melengkapi: {', '.join(data_missing[:2])}."
+        else:
+            staff_next_action = "Verifikasi permintaan dan proses tindak lanjut sesuai SLA."
+
+        sla_suggestion = "1 jam kerja" if prio_str == "high" else ("4 jam kerja" if prio_str == "medium" else "1 hari kerja")
+
+        risk_note = (
+            "Risiko churn tinggi jika tidak ditangani cepat." if prio_str == "high"
+            else "Risiko sedang — ikuti SLA standar." if prio_str == "medium"
+            else "Risiko rendah — tangani sesuai antrean."
+        )
+
+        support_case = {
+            "complaint_category": complaint_category,
+            "priority": prio_str,
+            "escalation_required": escalate_bool,
+            "escalation_team": escalation_team,
+            "data_available": data_available,
+            "data_missing": data_missing,
+            "staff_next_action": staff_next_action,
+            "sla_suggestion": sla_suggestion,
+            "risk_note": risk_note,
+        }
+
         return {
             "ticket_summary": intent.get("summary", "Ticket pelanggan membutuhkan tindak lanjut."),
             "intent": intent.get("intent"),
             "category": intent.get("category"),
-            "priority": priority.get("priority"),
-            "escalate": priority.get("escalate"),
-            "escalation_team": priority.get("escalation_team"),
+            "priority": prio_str,
+            "escalate": escalate_bool,
+            "escalation_team": escalation_team,
             "customer_reply": response,
             "internal_next_steps": actions,
+            "support_case": support_case,
             "quality_checks": {
                 "uses_policy_context": bool(solution.get("policy_basis")),
                 "has_clear_next_steps": bool(actions),
-                "mentions_escalation": bool(priority.get("escalate")),
+                "mentions_escalation": escalate_bool,
             },
             "reasoning": "Jawaban final menggabungkan klasifikasi, policy basis, rencana solusi, dan prioritas eskalasi.",
         }

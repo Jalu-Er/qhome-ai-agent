@@ -519,5 +519,141 @@ class FollowUpContinuityTest(unittest.TestCase):
         self.assertNotEqual(router["priority_rule"], "follow_up_continuation")
 
 
+class PhaseEnhancementsTest(unittest.TestCase):
+    """Tests for Phase 1 (latency profiling), Phase 4.1 (support case packet)."""
+
+    def setUp(self) -> None:
+        self.model = MockChatModel()
+        self.knowledge_base = read_json(ROOT / "data/knowledge_base.json")
+
+    def test_trace_steps_have_duration_ms(self) -> None:
+        """Every step in the trace must have a duration_ms field (Phase 1)."""
+        tickets = read_json(ROOT / "data/sample_tickets.json")
+        output = run_workflow(
+            model=self.model,
+            ticket=tickets[0],
+            knowledge_base=self.knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="duration-test",
+        )
+        trace = output.get("trace", [])
+        self.assertGreater(len(trace), 0, "Trace should not be empty")
+        for step in trace:
+            self.assertIn("duration_ms", step, f"Step '{step.get('agent')}' missing duration_ms")
+            self.assertIsNotNone(step["duration_ms"], f"Step '{step.get('agent')}' has null duration_ms")
+            self.assertGreaterEqual(step["duration_ms"], 0, f"duration_ms should be >= 0")
+
+    def test_trace_steps_have_agent_type(self) -> None:
+        """Every step in the trace must have an agent_type field (Phase 1)."""
+        tickets = read_json(ROOT / "data/sample_tickets.json")
+        output = run_workflow(
+            model=self.model,
+            ticket=tickets[0],
+            knowledge_base=self.knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="agenttype-test",
+        )
+        trace = output.get("trace", [])
+        self.assertGreater(len(trace), 0, "Trace should not be empty")
+        for step in trace:
+            self.assertIn("agent_type", step, f"Step '{step.get('agent')}' missing agent_type")
+            self.assertIsNotNone(step["agent_type"], f"Step '{step.get('agent')}' has null agent_type")
+            self.assertIsInstance(step["agent_type"], str)
+
+    def test_support_pipeline_has_support_case(self) -> None:
+        """Support pipeline final output must include a support_case packet (Phase 4.1)."""
+        tickets = read_json(ROOT / "data/sample_tickets.json")
+        output = run_workflow(
+            model=self.model,
+            ticket=tickets[0],  # damaged_item ticket → support pipeline
+            knowledge_base=self.knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="support-case-test",
+        )
+        final = output.get("final", {})
+        self.assertIn("support_case", final, "Support pipeline must produce a support_case packet")
+        sc = final["support_case"]
+        self.assertIsInstance(sc, dict, "support_case must be a dict")
+
+    def test_support_case_has_required_fields(self) -> None:
+        """support_case must include all operational fields required by staff (Phase 4.1)."""
+        tickets = read_json(ROOT / "data/sample_tickets.json")
+        output = run_workflow(
+            model=self.model,
+            ticket=tickets[0],
+            knowledge_base=self.knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="support-case-fields-test",
+        )
+        sc = output["final"].get("support_case", {})
+        required_fields = [
+            "complaint_category", "priority", "escalation_required",
+            "escalation_team", "data_available", "data_missing",
+            "staff_next_action", "sla_suggestion", "risk_note",
+        ]
+        for field in required_fields:
+            self.assertIn(field, sc, f"support_case missing required field: '{field}'")
+
+    def test_renovation_trace_has_all_agent_types(self) -> None:
+        """Renovation pipeline trace must show 7 different agent types (Phase 1)."""
+        ticket = {
+            "id": "reno-type-check",
+            "message": "Butuh keramik anti slip untuk kamar mandi 2x2m, budget 5 juta",
+            "history": "",
+            "customer_name": "Budi",
+        }
+        output = run_workflow(
+            model=self.model,
+            ticket=ticket,
+            knowledge_base=self.knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="reno-agent-type-test",
+        )
+        trace = output.get("trace", [])
+        agent_types = {step.get("agent_type") for step in trace if step.get("agent_type")}
+        # Should have multiple distinct types (LLM Routing, LLM Extraction, Catalog Retrieval, etc.)
+        self.assertGreater(len(agent_types), 3, f"Expected diverse agent types, got: {agent_types}")
+
+    def test_dynamic_switch_regression(self) -> None:
+        """Dynamic pipeline switch must still work after Phase 1 changes (regression)."""
+        knowledge_base = read_json(ROOT / "data/knowledge_base.json")
+        ticket = {
+            "id": "switch-regression",
+            "message": "saya juga mau pesan batu bata 500 pcs, berapa harganya?",
+            "history": "Customer: Pesanan saya rusak parah!\nAssistant: Maaf atas kerusakannya.",
+            "customer_name": "Dika",
+        }
+        output = run_workflow(
+            model=MockChatModel(),
+            ticket=ticket,
+            knowledge_base=knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="dynamic-switch-regression",
+        )
+        router = output["agent_outputs"]["triage_router"]
+        self.assertEqual(router["selected_pipeline"], "renovation_quote",
+                         "Dynamic switch to renovation should still work")
+
+    def test_complaint_first_regression(self) -> None:
+        """Complaint message must still route to support pipeline (regression)."""
+        knowledge_base = read_json(ROOT / "data/knowledge_base.json")
+        ticket = {
+            "id": "complaint-first-regression",
+            "message": "pesanan saya QH-12345 sudah 2 minggu belum sampai, ini komplain!",
+            "history": "",
+            "customer_name": "Sari",
+        }
+        output = run_workflow(
+            model=MockChatModel(),
+            ticket=ticket,
+            knowledge_base=knowledge_base,
+            output_dir=ROOT / "runs-test",
+            run_id="complaint-first-regression",
+        )
+        router = output["agent_outputs"]["triage_router"]
+        self.assertEqual(router["selected_pipeline"], "support",
+                         "Complaint-first routing must remain support pipeline")
+
+
 if __name__ == "__main__":
     unittest.main()

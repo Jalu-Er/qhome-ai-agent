@@ -87,7 +87,7 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 .trace-count { margin-left: 6px; font-weight: 600; font-size: 11px; color: var(--muted); text-transform: none; letter-spacing: 0; }
 .trace-list { display: flex; flex-direction: column; gap: 8px; }
 .trace-item { border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
-.trace-agent-name { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: var(--surface-soft); border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 700; }
+.trace-agent-name { display: flex; align-items: center; gap: 6px; justify-content: space-between; padding: 8px 12px; background: var(--surface-soft); border-bottom: 1px solid var(--line); font-size: 12px; font-weight: 700; }
 .agent-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); flex-shrink: 0; display: inline-block; }
 .trace-body { padding: 10px 12px; font-size: 12px; line-height: 1.55; color: var(--text-secondary); white-space: pre-wrap; word-break: break-word; }
 
@@ -544,3 +544,121 @@ ul, ol { margin: 0; padding: 0; list-style: none; }
 }
 
 
+/* ─── Phase 3: Customer Loading Status Text ─── */
+.loading-status-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+}
+.loading-status-text {
+  font-size: 12px;
+  color: var(--muted);
+  font-style: italic;
+  animation: fadeSlideIn 0.4s ease;
+}
+@keyframes fadeSlideIn {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* ─── Phase 1: Trace Duration & Agent Type Label ─── */
+.trace-duration {
+  margin-left: auto;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ok);
+  background: rgba(0, 200, 83, 0.1);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: "SF Mono", "Cascadia Code", monospace;
+}
+.agent-type-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 400;
+  font-style: italic;
+  display: block;
+  margin-top: 1px;
+}
+.trace-agent-info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+/* ─── Phase 2: Artifact Card ─── */
+.artifact-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.artifact-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+.artifact-row:last-of-type { border-bottom: none; }
+.artifact-label {
+  font-size: 11px;
+  color: var(--muted);
+  min-width: 100px;
+  flex-shrink: 0;
+}
+.artifact-value {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  text-align: right;
+  word-break: break-word;
+}
+.artifact-notes {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  margin-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  padding-top: 6px;
+  line-height: 1.5;
+}
+
+/* ─── Phase 4.1: Support Case Packet ─── */
+.support-case-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.sc-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 8px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.sc-action-box {
+  background: rgba(255, 152, 0, 0.06);
+  border-left: 3px solid #ff9800;
+  padding: 10px 14px;
+  border-radius: 0 6px 6px 0;
+  margin-bottom: 12px;
+}
+.sc-data-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.sc-data-col {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
